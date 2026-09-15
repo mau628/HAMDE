@@ -1,0 +1,32 @@
+{
+  "name": "yamde",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local-first Markdown editor with Obsidian-style live preview. Runs entirely in the browser.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "scripts": {
+    "dev": "nuxt dev",
+    "generate": "nuxt generate && node scripts/apply-csp-hashes.mjs",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run generate && playwright test",
+    "check:offline": "node scripts/check-no-remote-urls.mjs",
+    "verify": "npm run typecheck && npm run test && npm run generate && npm run check:offline",
+    "serve:static": "node scripts/serve-static.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@vitest/coverage-v8": "4.1.11",
+    "nuxt": "4.5.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11",
+    "vue": "3.5.42",
+    "vue-tsc": "3.3.11"
+  }
+}

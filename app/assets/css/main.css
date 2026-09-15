@@ -1,0 +1,96 @@
+/* Design tokens. No remote fonts, no icon fonts, no CSS frameworks. */
+:root {
+  --font-ui: system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+
+  --color-bg: #ffffff;
+  --color-bg-panel: #f7f7f6;
+  --color-border: #e3e3e0;
+  --color-text: #1f1f1d;
+  --color-text-muted: #6b6b66;
+  --color-accent: #3b6ea5;
+
+  --explorer-width: 260px;
+  --space: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1c1c1b;
+    --color-bg-panel: #181817;
+    --color-border: #2e2e2c;
+    --color-text: #e8e8e4;
+    --color-text-muted: #8f8f88;
+    --color-accent: #7aa7d9;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+#__nuxt {
+  height: 100%;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--explorer-width) 1fr;
+  height: 100%;
+}
+
+.shell__explorer {
+  overflow: auto;
+  padding: calc(var(--space) * 2);
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border);
+}
+
+.shell__editor {
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+  align-items: flex-start;
+  justify-content: center;
+  height: 100%;
+  padding: calc(var(--space) * 6);
+}
+
+.welcome__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.welcome__lead {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.welcome__privacy {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
