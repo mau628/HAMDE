@@ -9,6 +9,15 @@
   --color-text: #1f1f1d;
   --color-text-muted: #6b6b66;
   --color-accent: #3b6ea5;
+  --color-selection: #d6e4f7;
+
+  /* Syntax colours, shared by Markdown punctuation and fenced code blocks. */
+  --color-syntax-mark: #a8a8a1;
+  --color-syntax-keyword: #8a3fa0;
+  --color-syntax-string: #337a3f;
+  --color-syntax-number: #9a5b13;
+  --color-syntax-function: #2f6ea8;
+  --color-syntax-type: #1f7c86;
 
   --explorer-width: 260px;
   --space: 8px;
@@ -22,6 +31,14 @@
     --color-text: #e8e8e4;
     --color-text-muted: #8f8f88;
     --color-accent: #7aa7d9;
+    --color-selection: #2c4260;
+
+    --color-syntax-mark: #6a6a63;
+    --color-syntax-keyword: #c792ea;
+    --color-syntax-string: #86c98c;
+    --color-syntax-number: #e0a35f;
+    --color-syntax-function: #82aaff;
+    --color-syntax-type: #6fd3d9;
   }
 }
 
@@ -67,6 +84,18 @@ body {
   overflow: hidden;
 }
 
+.shell__title {
+  margin: 0 0 var(--space);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.shell__privacy {
+  margin: var(--space) 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
 .welcome {
   display: flex;
   flex-direction: column;

@@ -1,14 +1,19 @@
+<script setup lang="ts">
+import { sampleDocument } from '~/editor/sampleDocument'
+
+// M2 replaces this with the document opened from the user's folder.
+const doc = ref(sampleDocument)
+</script>
+
 <template>
   <div class="shell">
     <aside class="shell__explorer" aria-label="Files">
+      <h1 class="shell__title">YAMDE</h1>
       <!-- FileExplorer mounts here in M2 -->
+      <p class="shell__privacy">Files never leave your device.</p>
     </aside>
     <main class="shell__editor">
-      <div class="welcome">
-        <h1 class="welcome__title">YAMDE</h1>
-        <p class="welcome__lead">Open a local folder to start editing.</p>
-        <p class="welcome__privacy">Files never leave your device.</p>
-      </div>
+      <MarkdownEditor :doc="doc" @change="doc = $event" />
     </main>
   </div>
 </template>

@@ -37,5 +37,8 @@ guarantee rather than a promise.
 
 ## Status
 
-M0 complete: SPA scaffold, security baseline, test harness. The editor itself
-(CodeMirror 6 + live preview) lands in the following milestones.
+M1 complete: static SPA with the security baseline in place, and a CodeMirror 6
+editor parsing Markdown with GFM (tables, task lists, strikethrough, autolinks),
+syntax highlighting, undo/redo and list continuation.
+
+Next: opening a real folder (M2). The live preview lands in M5.

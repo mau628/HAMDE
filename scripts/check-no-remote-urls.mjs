@@ -15,7 +15,9 @@ import { ALLOWED_INERT_URLS } from "./allowed-origins.mjs"
 /** Files whose contents never reach the browser at runtime. */
 const IGNORED_EXTENSIONS = ['.map']
 
-const URL_PATTERN = /https?:\/\/[^\s"'()<>]+/g
+// Requires a real hostname after the scheme, so scheme-only concatenation inside a
+// library ('https://' + host) is not mistaken for a hard-coded endpoint.
+const URL_PATTERN = /https?:\/\/[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+[^\s"'()<>]*/g
 
 async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {

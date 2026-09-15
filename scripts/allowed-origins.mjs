@@ -16,4 +16,9 @@ export const ALLOWED_INERT_URLS = [
   // They are printed to the console for developers, not requested.
   'https://nuxt.com/docs/',
   'https://vuejs.org/error-reference',
+
+  // Appears inside Markdown *content* (the placeholder document, and test
+  // fixtures later), never as a resource the app loads. example.com is reserved
+  // for documentation by RFC 2606 and resolves to nothing meaningful.
+  'https://example.com',
 ]

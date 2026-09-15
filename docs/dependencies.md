@@ -40,6 +40,34 @@ committed; `npm audit` runs in CI.
 | **The `codemirror` meta-package** | Bundles `basicSetup` and pulls in packages we do not use. Individual packages only. |
 | **A debounce library** | A dozen lines of code. |
 
+## Transitive weight we cannot avoid
+
+`@codemirror/lang-markdown` imports `@codemirror/lang-html` at module scope (it uses
+it to highlight HTML tags that appear in a Markdown document), and `lang-html`
+embeds the JavaScript and CSS parsers to handle `<script>` and `<style>` content.
+So `@lezer/html`, `@lezer/javascript` and `@lezer/css` are in the bundle whether we
+ask for them or not; `markdown({ htmlTagLanguage })` cannot undo the top-level import.
+
+Two consequences:
+
+- Highlighting embedded HTML is free, and consistent with our rule that embedded HTML
+  is shown as text rather than rendered.
+- In M7, `javascript`, `typescript`, `html` and `css` cost nothing extra, because their
+  grammars are already loaded. Lazy loading only matters for json, sql, xml, yaml and
+  the `legacy-modes` parsers (bash, powershell, csharp).
+
+## Bundle baseline
+
+Measured after M1 (`npm run generate`, gzip):
+
+| Chunk | Size |
+| --- | --- |
+| Main entry (Vue + Nuxt + CodeMirror + Markdown/HTML/JS/CSS grammars) | ~186 kB |
+| Secondary chunk | ~31 kB |
+| CSS | ~1 kB |
+
+Mermaid (M8) must stay out of this number: it is loaded on demand, only for documents
+that actually contain a diagram.
 ## Notes on upstream
 
 - **The CodeMirror GitHub repositories are archived** (`codemirror/view`,
