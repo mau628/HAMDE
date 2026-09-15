@@ -86,7 +86,7 @@ Two properties of the write path matter for data safety:
 
 - Writes open the stream with `keepExistingData: true` and truncate explicitly, so
   a crash mid-write leaves the old tail rather than an empty file.
-- `writeFile` compares the file s current stamp against the one it was read with and
+- `writeFile` compares the file's current stamp against the one it was read with and
   refuses to overwrite a file that changed underneath. Conflict handling has been
   part of the contract since the function existed; M4 adds the UI for it.
 
