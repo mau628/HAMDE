@@ -1,0 +1,6 @@
+# Normalize source line endings so the repo is identical on every platform.
+* text=auto eol=lf
+
+# Test fixtures must keep their bytes exactly: the editor is required to preserve
+# a document's original line endings, and Git must not rewrite them.
+tests/fixtures/** -text
