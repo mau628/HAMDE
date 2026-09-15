@@ -8,11 +8,12 @@ import type { Page } from '@playwright/test'
  * runs on. The fake exercises the app's own code path — service, composables,
  * explorer, editor — against an in-memory folder.
  *
- * It exposes two hooks on `window`:
+ * It exposes these hooks on `window`:
  *
  * - `__writtenFiles`: what the app has written, by path.
  * - `__touchFile(path)`: advances a file's timestamp as another program would,
  *   so conflict detection can be tested.
+ * - `__editFileOnDisk(path, contents)`: rewrites a file behind the app's back.
  */
 export type FakeFolder = { [name: string]: string | FakeFolder }
 
@@ -111,6 +112,12 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
       __touchFile: (path: string) => {
         const state = states.get(path)
         if (state === undefined) throw new Error('No such fake file: ' + path)
+        state.lastModified = nextTimestamp()
+      },
+      __editFileOnDisk: (path: string, contents: string) => {
+        const state = states.get(path)
+        if (state === undefined) throw new Error('No such fake file: ' + path)
+        state.contents = contents
         state.lastModified = nextTimestamp()
       },
     })

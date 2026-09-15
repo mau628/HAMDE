@@ -105,7 +105,16 @@ load-bearing, and each has tests that fail if they are broken:
    not when the document is closed. `close()` returns `false` when it could not
    save, and the caller then refuses to switch documents or folders.
 2. **A conflict never retries by itself.** Further typing is recorded but not
-   written, because a retry would overwrite whatever the other program saved.
+   written, because a retry would overwrite whatever the other program saved. The
+   conflict bar asks the user to choose: **Reload** takes the file on disk (through
+   an undoable transaction, so Ctrl+Z still recovers the discarded text) and
+   **Overwrite** writes the editor version with no stamp check. Overwrite is the
+   only path in the app that deliberately discards another program s changes, and
+   it exists only behind that button.
+3. **Loading a document is not an edit.** The transaction that replaces the editor
+   contents is annotated, and the change listener ignores it. Without that, opening
+   a file looked like typing and autosave wrote it straight back, changing the
+   timestamp of a file the user never edited.
 
 Writes happen 500 ms after the last keystroke, and immediately on Ctrl+S, on window
 blur, when the tab is hidden, and before switching documents. `beforeunload` warns

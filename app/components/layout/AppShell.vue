@@ -49,6 +49,7 @@ function onChange(text: string) {
     </aside>
 
     <main class="shell__editor">
+      <ConflictBar />
       <MarkdownEditor :doc="documentText" @change="onChange" />
       <SaveStatus />
     </main>

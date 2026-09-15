@@ -74,6 +74,39 @@ export function useDocument() {
     await getController().flush()
   }
 
+  /**
+   * Resolves a conflict by keeping the version in the editor.
+   *
+   * Writes the pending text over whatever is on disk. Only reachable from the
+   * conflict bar, where the user has been told what the alternative is.
+   */
+  async function overwriteOnDisk(): Promise<void> {
+    if (activeDocument.value === null) return
+    await getController().overwrite()
+  }
+
+  /**
+   * Resolves a conflict by keeping the version on disk.
+   *
+   * The editor's text is replaced, which CodeMirror records as an undoable change —
+   * so Ctrl+Z still brings the discarded text back.
+   */
+  async function reloadFromDisk(): Promise<void> {
+    const open = activeDocument.value
+    if (open === null) return
+
+    const controllerRef = getController()
+    controllerRef.discardPendingText()
+
+    try {
+      const { text, stamp } = await fileSystemService.readFile(open.file)
+      activeDocument.value = { file: open.file, text, stamp }
+      controllerRef.attach(open.file, stamp)
+    } catch (cause) {
+      openError.value = cause instanceof Error ? cause.message : String(cause)
+    }
+  }
+
   /** Closes the document. Returns `false` if its text could not be saved. */
   async function closeDocument(): Promise<boolean> {
     if (activeDocument.value === null) return true
@@ -92,5 +125,7 @@ export function useDocument() {
     closeDocument,
     edit,
     saveNow,
+    overwriteOnDisk,
+    reloadFromDisk,
   }
 }

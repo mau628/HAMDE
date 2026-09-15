@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { EditorState } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { Annotation, EditorState } from '@codemirror/state'
+import { EditorView, type ViewUpdate } from '@codemirror/view'
 
 import { createEditorExtensions } from '~/editor/editorConfig'
 
@@ -10,12 +10,26 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  /** Fired whenever the user changes the document. Carries the full Markdown. */
+  /** Fired when the *user* changes the document. Carries the full Markdown. */
   change: [doc: string]
 }>()
 
+/**
+ * Marks a transaction as the app replacing the document rather than the user typing.
+ *
+ * Without this, loading a document looks exactly like an edit: the replacement
+ * dispatch reports `docChanged`, the app marks the document dirty, and autosave
+ * writes the file straight back — changing its timestamp although nothing was
+ * edited.
+ */
+const ProgrammaticChange = Annotation.define<boolean>()
+
 const host = ref<HTMLElement>()
 let view: EditorView | undefined
+
+function isProgrammatic(update: ViewUpdate): boolean {
+  return update.transactions.some((transaction) => transaction.annotation(ProgrammaticChange))
+}
 
 onMounted(() => {
   view = new EditorView({
@@ -24,7 +38,9 @@ onMounted(() => {
       extensions: [
         ...createEditorExtensions(),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) emit('change', update.state.doc.toString())
+          if (update.docChanged && !isProgrammatic(update)) {
+            emit('change', update.state.doc.toString())
+          }
         }),
       ],
     }),
@@ -38,7 +54,8 @@ onBeforeUnmount(() => {
 })
 
 /**
- * Replaces the whole document when a different file is opened.
+ * Replaces the whole document when another file is opened, or when the open one is
+ * reloaded from disk.
  *
  * Guarded against the echo of our own `change` event: replacing the document with
  * identical text would reset the cursor and pollute the undo history.
@@ -50,6 +67,7 @@ watch(
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: next },
       selection: { anchor: 0 },
+      annotations: ProgrammaticChange.of(true),
     })
   },
 )
@@ -61,6 +79,8 @@ watch(
 
 <style scoped>
 .editor {
-  height: 100%;
+  /* Fills what the conflict bar leaves; min-height lets it shrink and scroll. */
+  flex: 1;
+  min-height: 0;
 }
 </style>

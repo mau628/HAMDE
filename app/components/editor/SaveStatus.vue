@@ -10,15 +10,14 @@ const label = computed(() => {
     case 'saving':
       return 'Saving...'
     case 'conflict':
-      return 'Changed outside the editor - not saved'
+      return 'Changed outside the editor'
     case 'error':
       return 'Save failed: ' + saveState.value.message
   }
 })
 
-const canRetry = computed(
-  () => saveState.value.status === 'error' || saveState.value.status === 'conflict',
-)
+// A conflict is resolved in ConflictBar, not by retrying the same failing write.
+const canRetry = computed(() => saveState.value.status === 'error')
 </script>
 
 <template>

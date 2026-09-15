@@ -212,6 +212,78 @@ describe('conflicts', () => {
   })
 })
 
+describe('resolving a conflict', () => {
+  const conflicted: WriteResult = {
+    ok: false,
+    reason: 'conflict',
+    current: { lastModified: 7777, size: 3 },
+  }
+
+  async function reachConflict() {
+    const harness = setup()
+    harness.writer.set(() => conflicted)
+    harness.controller.edit('mine')
+    await vi.advanceTimersByTimeAsync(500)
+    expect(harness.controller.getState().status).toBe('conflict')
+    harness.writer.writes.length = 0
+    return harness
+  }
+
+  it('overwrite writes the pending text without passing a stamp', async () => {
+    const { controller, writer } = await reachConflict()
+    writer.set((text) => ({ ok: true, stamp: { lastModified: 8888, size: text.length } }))
+
+    await controller.overwrite()
+
+    expect(writer.writes).toEqual(['mine'])
+    // A null expectation is what tells the service to write unconditionally.
+    expect(writer.write.mock.calls.at(-1)?.[2]).toBeNull()
+    expect(controller.getState().status).toBe('clean')
+    expect(controller.hasPendingText()).toBe(false)
+  })
+
+  it('returns to normal saving after an overwrite', async () => {
+    const { controller, writer } = await reachConflict()
+    writer.set((text) => ({ ok: true, stamp: { lastModified: 8888, size: text.length } }))
+    await controller.overwrite()
+
+    controller.edit('mine and more')
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(writer.writes).toEqual(['mine', 'mine and more'])
+    // The follow-up write is a normal one: it carries the stamp again.
+    expect(writer.write.mock.calls.at(-1)?.[2]).not.toBeNull()
+    expect(controller.getState().status).toBe('clean')
+  })
+
+  it('reports a second conflict if the file changes again during the overwrite', async () => {
+    const { controller } = await reachConflict()
+
+    await controller.overwrite()
+
+    expect(controller.getState().status).toBe('conflict')
+    expect(controller.hasPendingText()).toBe(true)
+  })
+
+  it('discarding drops the pending text and clears the conflict', async () => {
+    const { controller, writer } = await reachConflict()
+
+    controller.discardPendingText()
+
+    expect(controller.getState()).toEqual({ status: 'clean' })
+    expect(controller.hasPendingText()).toBe(false)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(writer.writes).toEqual([])
+  })
+
+  it('can be closed after the conflict is resolved', async () => {
+    const { controller } = await reachConflict()
+
+    expect(await controller.close()).toBe(false)
+    controller.discardPendingText()
+    expect(await controller.close()).toBe(true)
+  })
+})
 describe('failures', () => {
   it('surfaces the write error and keeps the text', async () => {
     const { controller, writer } = setup()

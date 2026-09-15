@@ -52,6 +52,20 @@ export interface AutoSaveController {
    * with its pending text so the caller can refuse to switch away from it.
    */
   close: () => Promise<boolean>
+  /**
+   * Resolves a conflict by writing the pending text regardless of what is on disk.
+   *
+   * Only ever called from an explicit user action: this is the one path that
+   * deliberately discards another program's changes.
+   */
+  overwrite: () => Promise<void>
+  /**
+   * Drops the pending text.
+   *
+   * The counterpart of `overwrite`, for when the user chooses the version on disk.
+   * The caller must re-read the file and `attach` it again.
+   */
+  discardPendingText: () => void
   getState: () => SaveState
   /** Whether text is waiting to be written. */
   hasPendingText: () => boolean
@@ -82,7 +96,11 @@ export function createAutoSave(dependencies: AutoSaveDependencies): AutoSaveCont
     timer = null
   }
 
-  async function writePending(): Promise<void> {
+  /**
+   * @param force  Write regardless of what is on disk, for an explicit overwrite.
+   *               Every other write passes the stamp and can come back a conflict.
+   */
+  async function writePending(force: boolean): Promise<void> {
     if (file === null || pending === null) return
 
     const target = file
@@ -95,10 +113,10 @@ export function createAutoSave(dependencies: AutoSaveDependencies): AutoSaveCont
         return
       }
 
-      const result = await dependencies.write(target, text, stamp)
+      const result = await dependencies.write(target, text, force ? null : stamp)
 
       if (!result.ok) {
-        // Leave `pending` in place: the text is the user's, and M4 offers a choice.
+        // Leave `pending` in place: the text is the user's, and the UI offers a choice.
         setState({ status: 'conflict', current: result.current })
         return
       }
@@ -112,7 +130,8 @@ export function createAutoSave(dependencies: AutoSaveDependencies): AutoSaveCont
       }
 
       // The user typed while the write was in progress: write again immediately.
-      await writePending()
+      // Not forced: the stamp is now the one our own write produced.
+      await writePending(false)
     } catch (cause) {
       setState({
         status: 'error',
@@ -122,9 +141,9 @@ export function createAutoSave(dependencies: AutoSaveDependencies): AutoSaveCont
   }
 
   /** Serialises writes: concurrent callers await the same operation. */
-  function run(): Promise<void> {
+  function run(force = false): Promise<void> {
     if (inFlight === null) {
-      inFlight = writePending().finally(() => {
+      inFlight = writePending(force).finally(() => {
         inFlight = null
       })
     }
@@ -178,6 +197,24 @@ export function createAutoSave(dependencies: AutoSaveDependencies): AutoSaveCont
       stamp = null
       setState({ status: 'clean' })
       return true
+    },
+
+    async overwrite() {
+      cancelTimer()
+      // Let any write already in progress settle, so the forced write is ours.
+      if (inFlight !== null) await inFlight
+      await run(true)
+
+      // An edit that lands during the overwrite saves normally from here on.
+      if (pending !== null && state.status !== 'conflict' && state.status !== 'error') {
+        await run()
+      }
+    },
+
+    discardPendingText() {
+      cancelTimer()
+      pending = null
+      setState({ status: 'clean' })
     },
 
     flush,

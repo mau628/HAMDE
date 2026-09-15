@@ -6,8 +6,8 @@ const { root, busy, refresh } = useWorkspace()
   <div v-if="root" class="explorer">
     <div class="explorer__header">
       <span class="explorer__folder" :title="root.name">{{ root.name }}</span>
-      <button class="explorer__refresh" :disabled="busy" title="Reload folder" @click="refresh()">
-        Reload
+      <button class="explorer__refresh" :disabled="busy" title="Re-read this folder" @click="refresh()">
+        Refresh
       </button>
     </div>
 
