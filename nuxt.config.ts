@@ -4,6 +4,10 @@ import { buildCsp } from './security/csp'
 // NUXT_APP_BASE_URL=/YAMDE/ in the build environment. Local dev stays at '/'.
 const baseURL = process.env.NUXT_APP_BASE_URL ?? '/'
 
+// `nuxt dev` runs with NODE_ENV=development, `nuxt build`/`nuxt generate` with
+// production. The CSP differs between the two: see security/csp.ts.
+const isDevelopment = process.env.NODE_ENV !== 'production'
+
 export default defineNuxtConfig({
   // Pure client-side SPA: no Nuxt server in production.
   ssr: false,
@@ -19,7 +23,7 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { 'http-equiv': 'content-security-policy', content: buildCsp(Boolean(process.env.NUXT_DEV)) },
+        { 'http-equiv': 'content-security-policy', content: buildCsp(isDevelopment) },
         { name: 'referrer', content: 'no-referrer' },
         { name: 'color-scheme', content: 'light dark' },
       ],

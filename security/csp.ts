@@ -32,13 +32,21 @@ const base: Record<string, string> = {
 /**
  * Builds the policy string.
  *
- * @param dev  In development, Nuxt's HMR client needs a WebSocket, so `connect-src`
- *             is relaxed. Production enforces `connect-src 'none'`, which is the
- *             technical backstop for "notes never leave the device".
+ * Development needs two relaxations that production must never have:
+ *
+ * - `script-src 'unsafe-inline'`, because Nuxt emits its runtime config as an inline
+ *   script and the dev server serves HTML on the fly, so the build step that hashes
+ *   those scripts (scripts/apply-csp-hashes.mjs) has not run. Without this the app
+ *   does not mount at all: `window.__NUXT__` never gets defined.
+ * - `connect-src 'self' ws: wss:`, for Vite's HMR socket and DevTools' own probes.
+ *
+ * Production keeps `script-src 'self'` plus per-script hashes, and `connect-src
+ * 'none'` as the technical backstop for "notes never leave the device".
  */
 export function buildCsp(dev: boolean): string {
   const directives: Record<string, string> = {
     ...base,
+    'script-src': dev ? "'self' 'unsafe-inline'" : base['script-src']!,
     'connect-src': dev ? "'self' ws: wss:" : "'none'",
   }
   return Object.entries(directives)

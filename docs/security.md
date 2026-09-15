@@ -42,7 +42,12 @@ Decisions worth knowing about:
 - **`default-src 'none'`** rather than `'self'`. Anything not named is denied, so
   forgetting a directive fails closed.
 - **`connect-src 'none'`** is the technical backstop for "notes never leave the device".
-  In development it is relaxed to allow Nuxt's HMR WebSocket; production is strict.
+  Development relaxes it to `'self' ws: wss:` for Vite's HMR socket and the probes
+  browser DevTools makes on its own.
+- **Development also allows inline scripts**, because the dev server renders HTML on
+  the fly and the build step that hashes Nuxt's inline config script has not run.
+  Without it the app does not mount at all. These two are the only directives that
+  differ between environments, and a unit test asserts that nothing else does.
 - **`script-src` uses hashes, not `'unsafe-inline'`.** Nuxt emits its runtime config as
   an inline `<script>`. Instead of weakening the policy, `npm run generate` hashes each
   inline script and adds the hash to the policy
