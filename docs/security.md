@@ -98,7 +98,7 @@ Two properties of the write path matter for data safety:
 ## Autosave and data loss
 
 Autosave is an explicit state machine in `app/services/autoSave.ts`, kept free of
-Vue so it can be tested with fake timers rather than through the UI. Two rules are
+Vue so it can be tested with fake timers rather than through the UI. Three rules are
 load-bearing, and each has tests that fail if they are broken:
 
 1. **Pending text is never dropped** — not on a failed write, not on a conflict, and
@@ -109,7 +109,7 @@ load-bearing, and each has tests that fail if they are broken:
    conflict bar asks the user to choose: **Reload** takes the file on disk (through
    an undoable transaction, so Ctrl+Z still recovers the discarded text) and
    **Overwrite** writes the editor version with no stamp check. Overwrite is the
-   only path in the app that deliberately discards another program s changes, and
+   only path in the app that deliberately discards another program's changes, and
    it exists only behind that button.
 3. **Loading a document is not an edit.** The transaction that replaces the editor
    contents is annotated, and the change listener ignores it. Without that, opening
