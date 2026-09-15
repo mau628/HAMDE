@@ -1,7 +1,7 @@
 import { syntaxTree } from '@codemirror/language'
 import type { EditorState, Range } from '@codemirror/state'
 import { Decoration, type DecorationSet } from '@codemirror/view'
-import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common'
+import type { SyntaxNodeRef } from '@lezer/common'
 
 import { isRevealed, revealedSpans, type Span } from './reveal'
 import { BulletWidget } from './widgets'
@@ -9,7 +9,7 @@ import { BulletWidget } from './widgets'
 /**
  * Turns the Markdown syntax tree into decorations.
  *
- * Two things matter here:
+ * Three things matter here:
  *
  * - **The document is never modified.** Syntax is hidden with replace decorations
  *   and styled with mark decorations; `## Hello` stays `## Hello` on disk and in the
@@ -17,10 +17,15 @@ import { BulletWidget } from './widgets'
  * - **Nothing is parsed line by line.** Everything comes from the whole-document
  *   syntax tree, so multi-line structures (lists, blockquotes, tables, fenced code)
  *   are understood as structures. The *reveal* rule is per line; the parsing is not.
+ * - **Nothing costs more than the viewport.** Work is clamped to the range being
+ *   decorated, so a document with one 20,000-line blockquote costs the same as a
+ *   short one. Before that clamping, a single long quoted block made every cursor
+ *   move a whole-document walk.
  *
- * Only inline-level decorations are produced, and no replacement ever covers a line
- * break, because this set is provided through a view plugin — CodeMirror forbids
- * plugins from changing the vertical layout (see the note in `index.ts`).
+ * No replacement may cover a line break, because this set is provided through a view
+ * plugin: CodeMirror throws `Decorations that replace line breaks may not be
+ * specified via plugins`. `hide()` enforces that centrally rather than trusting each
+ * construct to remember it.
  */
 
 /** Hides a range. Reused across ranges: decoration values are immutable. */
@@ -73,7 +78,7 @@ export function buildPreviewDecorations(
     syntaxTree(state).iterate({
       from: range.from,
       to: range.to,
-      enter: (node) => builder.visit(node, spans),
+      enter: (node) => builder.visit(node, spans, range),
     })
   }
 
@@ -88,11 +93,11 @@ class DecorationBuilder {
 
   constructor(private readonly state: EditorState) {}
 
-  visit(node: SyntaxNodeRef, spans: readonly Span[]): void {
+  visit(node: SyntaxNodeRef, spans: readonly Span[], range: Span): void {
     const name = node.name
 
     if (name.startsWith('ATXHeading')) return this.atxHeading(node, spans)
-    if (name.startsWith('SetextHeading')) return this.setextHeading(node)
+    if (name.startsWith('SetextHeading')) return this.setextHeading(node, range)
 
     switch (name) {
       case 'StrongEmphasis':
@@ -104,20 +109,29 @@ class DecorationBuilder {
       case 'InlineCode':
         return this.inline(node, spans, MARK.inlineCode, 'CodeMark')
       case 'Blockquote':
-        return this.blockquote(node, spans)
+        // The `>` markers are QuoteMark nodes, handled on their own below: the tree
+        // walk already visits them, and reaching into the subtree from here would
+        // mean walking nodes outside the viewport.
+        return this.eachLine(node, LINE.quote, range)
+      case 'QuoteMark':
+        return this.quoteMark(node, spans)
       case 'ListItem':
         return this.listItem(node, spans)
       case 'Link':
         return this.link(node, spans)
+      case 'Autolink':
+        return this.autolink(node, spans)
       case 'URL':
         return this.url(node)
       case 'FencedCode':
       case 'CodeBlock':
-        return this.eachLine(node, LINE.code)
+        return this.eachLine(node, LINE.code, range)
       case 'Table':
-        return this.table(node)
+        return this.eachLine(node, LINE.table, range)
+      case 'TableDelimiter':
+        return this.mark(MARK.punctuation, node.from, node.to)
       case 'HorizontalRule':
-        return this.eachLine(node, LINE.rule)
+        return this.eachLine(node, LINE.rule, range)
       default:
         return
     }
@@ -133,9 +147,20 @@ class DecorationBuilder {
 
   // --- emitters -------------------------------------------------------------
 
+  /**
+   * Hides a range, clamped to the end of the line it starts on.
+   *
+   * The clamp is the safety net for the plugin contract. A construct that can span
+   * lines — an inline link whose destination wraps, say — must decide for itself
+   * whether hiding half of it makes sense; what it may not do is hand a newline to
+   * CodeMirror, which throws.
+   */
   private hide(from: number, to: number): void {
-    if (to <= from || !this.claim('hide', from, to)) return
-    const range = HIDDEN.range(from, to)
+    const lineEnd = this.state.doc.lineAt(from).to
+    const end = Math.min(to, lineEnd)
+    if (end <= from || !this.claim('hide', from, end)) return
+
+    const range = HIDDEN.range(from, end)
     this.all.push(range)
     this.hiddenOnly.push(range)
   }
@@ -164,13 +189,25 @@ class DecorationBuilder {
     return true
   }
 
-  /** Applies a line decoration to every line a node spans. */
-  private eachLine(node: SyntaxNodeRef, decoration: Decoration): void {
-    const first = this.state.doc.lineAt(node.from).number
-    const last = this.state.doc.lineAt(node.to).number
+  /**
+   * Applies a line decoration to every line a node spans, within `range`.
+   *
+   * Clamped on both ends: a structure far longer than the viewport must not be
+   * walked in full, and a node whose `to` sits exactly at a line start — an
+   * unterminated fenced block, for instance — must not style the line after it.
+   */
+  private eachLine(node: SyntaxNodeRef, decoration: Decoration, range: Span): void {
+    const { doc } = this.state
+    const from = Math.max(node.from, range.from)
+    const to = Math.min(node.to, range.to)
+    if (to < from) return
+
+    const first = doc.lineAt(from).number
+    // `to - 1` keeps a node ending at a line start from claiming that line.
+    const last = doc.lineAt(Math.max(from, to - 1)).number
 
     for (let number = first; number <= last; number += 1) {
-      this.line(decoration, this.state.doc.line(number).from)
+      this.line(decoration, doc.line(number).from)
     }
   }
 
@@ -190,14 +227,20 @@ class DecorationBuilder {
 
     if (isRevealed(spans, node.from, node.to)) return
 
-    for (const marker of node.node.getChildren('HeaderMark')) {
-      // Opening mark: swallow the space after it, or the text starts indented.
-      // Closing mark of `## Hi ##`: swallow the space before it instead.
-      const opening = marker.from === node.from
-      this.hide(
-        opening ? marker.from : this.skipSpacesBackwards(marker.from, line.from),
-        opening ? this.skipSpacesForwards(marker.to, line.to) : marker.to,
-      )
+    const markers = node.node.getChildren('HeaderMark')
+    const opening = markers.at(0)
+    if (opening === undefined) return
+
+    // A heading may be indented by up to three spaces; hide those too, or the text
+    // sits indented while its neighbours are flush.
+    const openingEnd = this.skipSpacesForwards(opening.to, line.to)
+    this.hide(line.from, openingEnd)
+
+    // `## Hi ##` — the closing marker takes the space before it. The backwards skip
+    // stops at the opening hide so the two cannot overlap, which they did for
+    // headings with no content at all (`## ##`).
+    for (const marker of markers.slice(1)) {
+      this.hide(this.skipSpacesBackwards(marker.from, openingEnd), marker.to)
     }
   }
 
@@ -206,18 +249,23 @@ class DecorationBuilder {
    * removing a whole line — a vertical layout change, which a view plugin may not
    * make. The text is styled; the underline stays visible.
    */
-  private setextHeading(node: SyntaxNodeRef): void {
+  private setextHeading(node: SyntaxNodeRef, range: Span): void {
     const level = Number(node.name.slice('SetextHeading'.length))
     const style = LINE.heading[level - 1]
     if (style === undefined) return
 
     const marker = node.node.getChild('HeaderMark')
     const textEnd = marker === null ? node.to : marker.from
-    const first = this.state.doc.lineAt(node.from).number
-    const last = this.state.doc.lineAt(textEnd).number
+    const { doc } = this.state
+    const from = Math.max(node.from, range.from)
+    const to = Math.min(textEnd, range.to)
+    if (to < from) return
+
+    const first = doc.lineAt(from).number
+    const last = doc.lineAt(Math.max(from, to - 1)).number
 
     for (let number = first; number <= last; number += 1) {
-      this.line(style, this.state.doc.line(number).from)
+      this.line(style, doc.line(number).from)
     }
   }
 
@@ -237,15 +285,18 @@ class DecorationBuilder {
     }
   }
 
-  /** `> quoted` — one `>` per line, each hidden with the space that follows it. */
-  private blockquote(node: SyntaxNodeRef, spans: readonly Span[]): void {
-    this.eachLine(node, LINE.quote)
+  /**
+   * The `>` of a quoted line, hidden with **one** following space.
+   *
+   * Only one: the rest is indentation, and inside a blockquote indentation is what
+   * distinguishes a nested list from a sibling one.
+   */
+  private quoteMark(node: SyntaxNodeRef, spans: readonly Span[]): void {
+    if (isRevealed(spans, node.from, node.to)) return
 
-    for (const marker of this.descendants(node.node, 'QuoteMark')) {
-      if (isRevealed(spans, marker.from, marker.to)) continue
-      const line = this.state.doc.lineAt(marker.from)
-      this.hide(marker.from, this.skipSpacesForwards(marker.to, line.to))
-    }
+    const line = this.state.doc.lineAt(node.from)
+    const next = node.to < line.to && this.state.doc.sliceString(node.to, node.to + 1) === ' '
+    this.hide(node.from, next ? node.to + 1 : node.to)
   }
 
   /**
@@ -270,8 +321,13 @@ class DecorationBuilder {
   /**
    * `[text](url)` — shows the text, hides the brackets and the target.
    *
-   * A reference link (`[text][label]`) has no URL child, and its label matters to the
-   * reader, so it is styled but left intact.
+   * Three cases are left as source instead:
+   *
+   * - A reference link (`[text][label]`) has no URL child, and its label matters.
+   * - A link whose destination or title wraps onto the next line, because hiding it
+   *   would mean covering a line break. Rare, and showing the source is honest.
+   * - A link with no text (`[](url)`), which would otherwise render as nothing at
+   *   all and leave the user with an empty line they cannot see or click into.
    */
   private link(node: SyntaxNodeRef, spans: readonly Span[]): void {
     const marks = node.node.getChildren('LinkMark')
@@ -284,51 +340,47 @@ class DecorationBuilder {
       return
     }
 
-    this.mark(MARK.link, opening.to, closing.from)
+    const hasText = closing.from > opening.to
+    if (hasText) this.mark(MARK.link, opening.to, closing.from)
 
     if (isRevealed(spans, node.from, node.to)) return
+
+    const singleLine = this.state.doc.lineAt(node.from).to >= node.to
+    if (!hasText || !singleLine) return
 
     this.hide(opening.from, opening.to)
     // From `]` to the end of the link covers `](url "title")` in one range.
     this.hide(closing.from, node.to)
   }
 
+  /** `<https://example.com>` — shows the URL, hides the angle brackets. */
+  private autolink(node: SyntaxNodeRef, spans: readonly Span[]): void {
+    this.mark(MARK.url, node.from, node.to)
+
+    if (isRevealed(spans, node.from, node.to)) return
+
+    for (const marker of node.node.getChildren('LinkMark')) {
+      this.hide(marker.from, marker.to)
+    }
+  }
+
   /** A bare URL: an autolink when it stands alone, styled either way. */
   private url(node: SyntaxNodeRef): void {
     const parent = node.node.parent?.name
-    // Inside a link or image the URL is handled by its container.
-    if (parent === 'Link' || parent === 'Image' || parent === 'LinkReference') return
+    // Inside a link, image, autolink or reference the URL belongs to its container.
+    if (
+      parent === 'Link' ||
+      parent === 'Image' ||
+      parent === 'Autolink' ||
+      parent === 'LinkReference'
+    ) {
+      return
+    }
 
     this.mark(MARK.url, node.from, node.to)
   }
 
-  /** Tables are styled, never replaced: see docs/decisions on keeping them editable. */
-  private table(node: SyntaxNodeRef): void {
-    this.eachLine(node, LINE.table)
-
-    for (const delimiter of this.descendants(node.node, 'TableDelimiter')) {
-      this.mark(MARK.punctuation, delimiter.from, delimiter.to)
-    }
-  }
-
   // --- helpers --------------------------------------------------------------
-
-  /**
-   * Collects nodes of one type anywhere under `root`.
-   *
-   * `getChildren` only looks one level down, and marks such as `QuoteMark` appear
-   * both directly under the structure and inside the paragraphs within it.
-   */
-  private descendants(root: SyntaxNode, name: string): SyntaxNode[] {
-    const found: SyntaxNode[] = []
-    const cursor = root.cursor()
-
-    do {
-      if (cursor.name === name) found.push(cursor.node)
-    } while (cursor.next() && cursor.from < root.to)
-
-    return found
-  }
 
   private skipSpacesForwards(position: number, limit: number): number {
     let end = position

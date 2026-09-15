@@ -1,5 +1,6 @@
 import { syntaxTree } from '@codemirror/language'
-import type { Extension } from '@codemirror/state'
+import type { EditorState, Extension } from '@codemirror/state'
+import type { SyntaxNode } from '@lezer/common'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 
 import { openExternal } from '~/services/links'
@@ -84,29 +85,61 @@ const linkClicks = EditorView.domEventHandlers({
     const position = view.posAtCoords({ x: event.clientX, y: event.clientY })
     if (position === null) return false
 
-    const href = linkTargetAt(view, position)
+    const href = linkTargetAt(view.state, position)
     if (href === null) return false
 
+    // Only claim the click once something was actually opened. A refused target —
+    // a relative path, or `javascript:` — must still place the cursor, or the click
+    // vanishes with no explanation.
+    if (!openExternal(href)) return false
+
     event.preventDefault()
-    return openExternal(href)
+    return true
   },
 })
 
-/** The URL of the link or autolink at a position, if there is one. */
-function linkTargetAt(view: EditorView, position: number): string | null {
-  let node = syntaxTree(view.state).resolveInner(position, 1)
+/**
+ * The URL of the link or autolink at a position, if there is one.
+ *
+ * Exported for testing: this is the function that decides what a click may open, so
+ * it is worth exercising directly rather than only through the browser.
+ *
+ * The whole ancestor chain is walked before any URL is returned, because a `URL`
+ * node inside an image must yield nothing. Returning early on the first `URL` meant
+ * `![alt](https://tracker.example/x.png)` was a clickable link to an image host —
+ * the one thing the preview is meant never to reach on its own.
+ */
+export function linkTargetAt(state: EditorState, position: number): string | null {
+  let candidate: string | null = null
 
-  while (node.parent !== null) {
+  for (
+    let node: SyntaxNode | null = syntaxTree(state).resolveInner(position, 1);
+    node !== null;
+    node = node.parent
+  ) {
+    // An image anywhere up the chain disqualifies the position entirely.
+    if (node.name === 'Image') return null
+
     if (node.name === 'Link') {
       const url = node.getChild('URL')
-      return url === null ? null : view.state.doc.sliceString(url.from, url.to)
+      candidate = url === null ? null : unwrapAngleBrackets(state.doc.sliceString(url.from, url.to))
+      continue
     }
-    if (node.name === 'URL') {
-      return view.state.doc.sliceString(node.from, node.to)
+
+    if (candidate === null && (node.name === 'URL' || node.name === 'Autolink')) {
+      candidate = unwrapAngleBrackets(state.doc.sliceString(node.from, node.to))
     }
-    if (node.name === 'Image') return null
-    node = node.parent
   }
 
-  return null
+  return candidate
+}
+
+/**
+ * `<https://example.com>` is a URL in pointy brackets, which CommonMark allows both
+ * as an autolink and as a link destination. The brackets are syntax, not part of the
+ * target, and leaving them on makes the URL unparseable — so the link never opened.
+ */
+function unwrapAngleBrackets(url: string): string {
+  const trimmed = url.trim()
+  return trimmed.startsWith('<') && trimmed.endsWith('>') ? trimmed.slice(1, -1) : trimmed
 }

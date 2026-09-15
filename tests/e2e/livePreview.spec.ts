@@ -70,7 +70,7 @@ test('re-renders the previous line when the cursor moves away', async ({ page })
   await open(page)
 
   await clickLine(page, 'bold')
-  expect(await visibleText(page)).toContain('**bold**')
+  await expect.poll(() => visibleText(page)).toContain('**bold**')
 
   await clickLine(page, 'quotation')
   const shown = await visibleText(page)
@@ -200,10 +200,10 @@ test('undo restores the document, not the rendering', async ({ page }) => {
   await clickLine(page, 'A quotation.')
   await page.keyboard.press('End')
   await page.keyboard.type(' Added.')
-  expect(await visibleText(page)).toContain('Added.')
+  await expect.poll(() => visibleText(page)).toContain('Added.')
 
   await page.keyboard.press('ControlOrMeta+z')
-  expect(await visibleText(page)).not.toContain('Added.')
+  await expect.poll(() => visibleText(page)).not.toContain('Added.')
 })
 
 test('heading styling is applied once, not compounded', async ({ page }) => {
@@ -240,6 +240,44 @@ test('decorates only the viewport, however long the document is', async ({ page 
   await page.locator('.cm-content').click()
   await page.keyboard.type('typed')
   expect(await page.locator('.cm-line').count()).toBeLessThan(200)
+})
+
+test('renders awkward Markdown without a CodeMirror error', async ({ page }) => {
+  // Each line here broke something: a link whose destination wraps used to throw
+  // "Decorations that replace line breaks may not be specified via plugins", which
+  // takes the editor down rather than merely rendering oddly.
+  const awkward = [
+    '[a](',
+    'https://x.com)',
+    '',
+    '## ##',
+    '',
+    '[](https://x.com)',
+    '',
+    '<https://example.com>',
+    '',
+    '```',
+    'unterminated',
+    '',
+  ].join(String.fromCharCode(10))
+
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+
+  await installFakePicker(page, { 'awkward.md': awkward })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Folder' }).click()
+  await page.getByRole('button', { name: 'awkward.md' }).click()
+  await expect(page.locator('.status__path')).toHaveText('awkward.md')
+
+  // Walk the cursor through the document: each position rebuilds the decorations.
+  await page.locator('.cm-content').click()
+  for (let index = 0; index < 14; index += 1) await page.keyboard.press('ArrowDown')
+
+  expect(errors).toEqual([])
 })
 
 test('live preview issues no network request', async ({ page }) => {

@@ -272,6 +272,51 @@ describe('links', () => {
   })
 })
 
+describe('cases that used to render wrong', () => {
+  it('keeps the indentation that shows a list is nested inside a quote', () => {
+    // Hiding all the whitespace after ">" collapsed the nesting, so a child item
+    // rendered flush with its parent. Only one space belongs to the marker.
+    expect(rendered('> - a\n>   - b\n', 1000)).toBe('• a\n  • b\n')
+  })
+
+  it('hides the indentation of an indented heading along with its marker', () => {
+    expect(rendered('   ## indented\n', 1000)).toBe('indented\n')
+  })
+
+  it('leaves a link whose destination wraps as plain source', () => {
+    // Hiding it would have to cover a line break, which a view plugin may not do.
+    expect(rendered('[a](\nhttps://x.com)\n', 1000)).toBe('[a](\nhttps://x.com)\n')
+    expect(rendered('[a](https://x.com "ti\ntle")\n', 1000)).toBe('[a](https://x.com "ti\ntle")\n')
+  })
+
+  it('leaves a link with no text as source, rather than rendering nothing at all', () => {
+    expect(rendered('[](https://x.com)\n', 1000)).toBe('[](https://x.com)\n')
+  })
+
+  it('hides the angle brackets of a bracketed autolink', () => {
+    expect(rendered('<https://example.com>\n', 1000)).toBe('https://example.com\n')
+  })
+
+  it('does not style the line after an unterminated fence', () => {
+    const doc = '```\ncode\n'
+    const state = stateFor(doc, doc.length)
+    const { decorations } = buildPreviewDecorations(state, [{ from: 0, to: doc.length }])
+
+    const codeLines: number[] = []
+    decorations.between(0, doc.length, (from, _to, value) => {
+      if (value.spec.class === 'cm-md-code-line') codeLines.push(from)
+    })
+
+    // Lines 1 and 2 only. The node ends at the start of line 3, which is not part
+    // of the block.
+    expect(codeLines).toEqual([0, 4])
+  })
+
+  it('renders an empty closed heading without overlapping replacements', () => {
+    expect(rendered('## ##\n', 1000)).toBe('\n')
+  })
+})
+
 describe('tables, rules and code blocks', () => {
   it('keeps a table as editable source and styles its lines', () => {
     const doc = '| a | b |\n| - | - |\n| 1 | 2 |\n'
@@ -301,6 +346,21 @@ describe('invariants', () => {
     '***\n\n- one\n  - two\n    - three\n',
     'unbalanced ** and *** and ~~ and `\n',
     '#\n##\n###\n',
+    // Each of the following used to break something.
+    // A link whose destination or title wraps: hiding it covered a line break, and
+    // CodeMirror throws for that in a view plugin.
+    '[a](\nhttps://x.com)\n',
+    '[a](https://x.com "ti\ntle")\n',
+    // A heading with no content: the opening and closing markers hid overlapping
+    // ranges, because each skipped the same whitespace from its own side.
+    '## ##\n',
+    '#   #\n',
+    // A fence still being typed: its node ends at the start of the following line.
+    '```\ncode\n',
+    '[](https://x.com)\n',
+    '   ## indented\n',
+    '<https://example.com> and ![alt](cat.png)\n',
+    '> - a\n>   - b\n',
   ]
 
   it.each(documents)('no replacement crosses a line break: %j', (doc) => {
@@ -316,6 +376,22 @@ describe('invariants', () => {
 
     // A view plugin may not replace a line break, so this must always be empty.
     expect(crossings).toEqual([])
+  })
+
+  it.each(documents)('no two hidden ranges overlap: %j', (doc) => {
+    const state = stateFor(doc, doc.length)
+    const { hidden } = buildPreviewDecorations(state, [{ from: 0, to: doc.length }])
+
+    const overlaps: string[] = []
+    let previousTo = -1
+    hidden.between(0, doc.length, (from, to) => {
+      if (from < previousTo) overlaps.push(from + '-' + to)
+      previousTo = Math.max(previousTo, to)
+    })
+
+    // Overlapping replacements are never intended, and they are also atomic ranges,
+    // so an overlap would make cursor motion unpredictable.
+    expect(overlaps).toEqual([])
   })
 
   it.each(documents)('never loses or reorders visible text: %j', (doc) => {
@@ -351,6 +427,20 @@ describe('invariants', () => {
     const { decorations, hidden } = buildPreviewDecorations(state, [{ from: 0, to: 0 }])
     expect(decorations.size).toBe(0)
     expect(hidden.size).toBe(0)
+  })
+
+  it('does not decorate, or even walk, past the range it was given', () => {
+    // A structure much longer than the viewport must cost the viewport, not the
+    // document: this used to emit a line decoration for all 200 quoted lines.
+    const doc = '> quoted line\n'.repeat(200)
+    const state = stateFor(doc, doc.length)
+    const { decorations } = buildPreviewDecorations(state, [{ from: 0, to: 40 }])
+
+    let beyond = 0
+    decorations.between(60, doc.length, () => {
+      beyond += 1
+    })
+    expect(beyond).toBe(0)
   })
 
   it('does not decorate outside the range it was given', () => {

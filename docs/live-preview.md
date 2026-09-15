@@ -39,6 +39,17 @@ frame (~17 ms) per cursor move. An end-to-end test asserts the DOM stays bounded
 a future change that walks the whole document fails loudly instead of quietly making
 large files slow.
 
+Both ends of that are enforced rather than remembered:
+
+- `eachLine` and the tree walk are clamped to the range being decorated, so a
+  20,000-line blockquote costs the viewport and not the document. Without the
+  clamp one long quoted block made every cursor move a whole-document walk (56 ms
+  per keystroke, measured).
+- `hide()` clamps every range to the end of the line it starts on, so no construct
+  can hand CodeMirror a newline. It throws `Decorations that replace line breaks
+  may not be specified via plugins` if one does, which takes the editor down —
+  an inline link whose destination wrapped onto the next line did exactly that.
+
 The price is that **no replacement here may cover a newline**. Two consequences:
 
 - A setext heading (`Title` over `=====`) keeps its underline visible. Hiding it would
@@ -58,13 +69,13 @@ ones, no hidden range contains a `\n`.
 | Blockquote | `>` hidden per line, line indented with a rule |
 | Bullet list | Marker replaced with a bullet widget |
 | Ordered list | Number kept — it is content the user chose |
-| Link | Text shown, `[`, `](url "title")` hidden; Ctrl/Cmd+click opens it |
-| Autolink | Styled, nothing hidden |
+| Link | Text shown, `[`, `](url "title")` hidden; Ctrl/Cmd+click opens it. A link with no text, or one whose destination wraps onto another line, stays as source |
+| Autolink | Styled; a bracketed autolink (`<https://…>`) has its brackets hidden |
 | Reference link | Left intact: the label matters to the reader |
 | Table | Styled as monospace source, never replaced — it stays editable |
 | Horizontal rule | Line styled with a border, dashes kept |
 | Fenced code | Lines styled as a code block; highlighting arrives in M7 |
-| Image | Left as source until M9 renders local images |
+| Image | Left as source until M9 renders local images. Never a click target: following an image URL would tell that server which note is open |
 | Task list | `[ ]` left as text until M6 makes it a checkbox |
 
 ## Cursor motion
@@ -82,3 +93,18 @@ like a click anywhere else.
 
 The only place a widget will ever change the document is the task checkbox in M6, and
 it changes exactly one character.
+
+## Rendering decisions that look like bugs
+
+- **A quote marker takes one space, not all of them.** `>` followed by three spaces
+  is a marker plus indentation, and inside a blockquote indentation is what
+  distinguishes a nested list from a sibling one. Hiding all of it collapsed the
+  nesting.
+- **An indented heading loses its indentation too.** Markdown allows up to three
+  leading spaces; hiding only the `##` left the text indented while its neighbours
+  were flush.
+- **An empty closed heading (`## ##`) renders as an empty line.** There is nothing
+  between the markers to show.
+- **A fence still being typed does not style the line below it.** An unterminated
+  `FencedCode` node ends at the start of the following line, which is not part of
+  the block.

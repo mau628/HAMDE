@@ -37,20 +37,20 @@ test('types text into the document', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+Home')
   await page.keyboard.type('Typed. ')
 
-  expect(await editorText(page)).toContain('Typed. # YAMDE')
+  await expect.poll(() => editorText(page)).toContain('Typed. # YAMDE')
 })
 
 test('undoes and redoes an edit', async ({ page }) => {
   await openEditor(page)
   await page.keyboard.press('ControlOrMeta+Home')
   await page.keyboard.type('zzprobe')
-  expect(await editorText(page)).toContain('zzprobe')
+  await expect.poll(() => editorText(page)).toContain('zzprobe')
 
   await page.keyboard.press('ControlOrMeta+z')
-  expect(await editorText(page)).not.toContain('zzprobe')
+  await expect.poll(() => editorText(page)).not.toContain('zzprobe')
 
   await page.keyboard.press('ControlOrMeta+Shift+z')
-  expect(await editorText(page)).toContain('zzprobe')
+  await expect.poll(() => editorText(page)).toContain('zzprobe')
 })
 
 test('continues a list when Enter is pressed', async ({ page }) => {
@@ -64,7 +64,7 @@ test('continues a list when Enter is pressed', async ({ page }) => {
 
   // The new item carries a marker of its own: on the cursor's line it shows as
   // source, which is how we know the keymap inserted "- " and not just a newline.
-  expect(await editorText(page)).toContain('- Banana')
+  await expect.poll(() => editorText(page)).toContain('- Banana')
 })
 
 test('keeps the Markdown source in the document, revealed on the cursor line', async ({ page }) => {
@@ -72,9 +72,9 @@ test('keeps the Markdown source in the document, revealed on the cursor line', a
   await page.keyboard.press('ControlOrMeta+End')
 
   // Rendered: the syntax is hidden, not removed.
-  expect(await editorText(page)).not.toContain('**bold**')
+  await expect.poll(() => editorText(page)).not.toContain('**bold**')
 
   // The document still holds it, and putting the cursor on the line shows it again.
   await page.locator('.cm-line', { hasText: 'Text can be' }).first().click()
-  expect(await editorText(page)).toContain('**bold**')
+  await expect.poll(() => editorText(page)).toContain('**bold**')
 })

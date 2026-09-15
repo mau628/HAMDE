@@ -213,6 +213,45 @@ describe('parse tree shapes the live preview depends on', () => {
     `)
   })
 
+  it('bracketed autolink', () => {
+    expect(shape('<https://example.com> and [a](<https://x.com>)\n')).toMatchInlineSnapshot(`
+      "Document "<https://example.com> and [a](<https://x.com>)\\\\n"
+        Paragraph "<https://example.com> and [a](<https://x.com>)"
+          Autolink "<https://example.com>"
+            LinkMark "<"
+            URL "https://example.com"
+            LinkMark ">"
+          Link "[a](<https://x.com>)"
+            LinkMark "["
+            LinkMark "]"
+            LinkMark "("
+            URL "<https://x.com>"
+            LinkMark ")""
+    `)
+  })
+
+  it('link across two lines', () => {
+    expect(shape('[a](\nhttps://x.com)\n')).toMatchInlineSnapshot(`
+      "Document "[a](\\\\nhttps://x.com)\\\\n"
+        Paragraph "[a](\\\\nhttps://x.com)"
+          Link "[a](\\\\nhttps://x.com)"
+            LinkMark "["
+            LinkMark "]"
+            LinkMark "("
+            URL "https://x.com"
+            LinkMark ")""
+    `)
+  })
+
+  it('unterminated fence', () => {
+    expect(shape('```\ncode\n')).toMatchInlineSnapshot(`
+      "Document "\`\`\`\\\\ncode\\\\n"
+        FencedCode "\`\`\`\\\\ncode\\\\n"
+          CodeMark "\`\`\`"
+          CodeText "code\\\\n""
+    `)
+  })
+
   it('table', () => {
     expect(shape('| a | b |\n| - | - |\n| 1 | 2 |\n')).toMatchInlineSnapshot(`
       "Document "| a | b |\\\\n| - | - |\\\\n| 1 | 2 |\\\\n"
