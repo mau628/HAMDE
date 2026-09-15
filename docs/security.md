@@ -93,7 +93,23 @@ Two properties of the write path matter for data safety:
   a crash mid-write leaves the old tail rather than an empty file.
 - `writeFile` compares the file's current stamp against the one it was read with and
   refuses to overwrite a file that changed underneath. Conflict handling has been
-  part of the contract since the function existed; M4 adds the UI for it.
+  part of the contract since the function existed; M4 adds the resolution UI.
+
+## Autosave and data loss
+
+Autosave is an explicit state machine in `app/services/autoSave.ts`, kept free of
+Vue so it can be tested with fake timers rather than through the UI. Two rules are
+load-bearing, and each has tests that fail if they are broken:
+
+1. **Pending text is never dropped** — not on a failed write, not on a conflict, and
+   not when the document is closed. `close()` returns `false` when it could not
+   save, and the caller then refuses to switch documents or folders.
+2. **A conflict never retries by itself.** Further typing is recorded but not
+   written, because a retry would overwrite whatever the other program saved.
+
+Writes happen 500 ms after the last keystroke, and immediately on Ctrl+S, on window
+blur, when the tab is hidden, and before switching documents. `beforeunload` warns
+while anything is unsaved.
 
 ## No telemetry
 

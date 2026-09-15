@@ -3,26 +3,45 @@ import type { Page } from '@playwright/test'
 /**
  * Installs an in-page stand-in for `window.showDirectoryPicker`.
  *
- * The real picker is a native dialog that Playwright cannot drive, and granting a
- * browser permission to a real folder is not something a test should do to the
- * machine it runs on. The fake exercises the app's own code path — service,
- * composable, explorer, editor — against an in-memory folder.
+ * The real picker is a native dialog Playwright cannot drive, and granting a browser
+ * permission to a real folder is not something a test should do to the machine it
+ * runs on. The fake exercises the app's own code path — service, composables,
+ * explorer, editor — against an in-memory folder.
  *
- * `folder` maps names to file contents; a nested object is a subdirectory.
+ * It exposes two hooks on `window`:
+ *
+ * - `__writtenFiles`: what the app has written, by path.
+ * - `__touchFile(path)`: advances a file's timestamp as another program would,
+ *   so conflict detection can be tested.
  */
 export type FakeFolder = { [name: string]: string | FakeFolder }
 
 export async function installFakePicker(page: Page, folder: FakeFolder): Promise<void> {
   await page.addInitScript((tree: FakeFolder) => {
-    // Files written through the app land here, so a test can read them back.
+    interface FileState {
+      contents: string
+      lastModified: number
+    }
+
     const written = new Map<string, string>()
-    ;(window as unknown as { __writtenFiles: Map<string, string> }).__writtenFiles = written
+    // File state is keyed by path so handles stay consistent across re-listings,
+    // the way a real file does.
+    const states = new Map<string, FileState>()
 
     let clock = 1_000_000
     const nextTimestamp = () => (clock += 1000)
 
+    const stateFor = (path: string, initial: string): FileState => {
+      let state = states.get(path)
+      if (state === undefined) {
+        state = { contents: initial, lastModified: nextTimestamp() }
+        states.set(path, state)
+      }
+      return state
+    }
+
     const makeFileHandle = (name: string, path: string, initial: string) => {
-      const state = { contents: initial, lastModified: nextTimestamp() }
+      const state = stateFor(path, initial)
 
       return {
         kind: 'file' as const,
@@ -40,12 +59,13 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
           let buffer = ''
           return {
             async write(command: { data: Uint8Array | string }) {
-              buffer = typeof command.data === 'string'
-                ? command.data
-                : new TextDecoder().decode(command.data)
+              buffer =
+                typeof command.data === 'string'
+                  ? command.data
+                  : new TextDecoder().decode(command.data)
             },
             async truncate() {
-              // The fake stores text, so the explicit truncate is a no-op here.
+              // The fake stores text, so the explicit truncate has nothing to do.
             },
             async close() {
               state.contents = buffer
@@ -83,6 +103,15 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
       },
       async requestPermission() {
         return 'granted' as const
+      },
+    })
+
+    Object.assign(window, {
+      __writtenFiles: written,
+      __touchFile: (path: string) => {
+        const state = states.get(path)
+        if (state === undefined) throw new Error('No such fake file: ' + path)
+        state.lastModified = nextTimestamp()
       },
     })
 

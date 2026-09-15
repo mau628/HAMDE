@@ -6,7 +6,8 @@ const props = defineProps<{
   depth: number
 }>()
 
-const { activeDocument, isExpanded, toggleDirectory, openFile } = useWorkspace()
+const { isExpanded, toggleDirectory, openFile } = useWorkspace()
+const { activeDocument } = useDocument()
 
 const isActive = computed(
   () => props.node.kind === 'file' && activeDocument.value?.file.path === props.node.path,

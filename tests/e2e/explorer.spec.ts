@@ -100,7 +100,7 @@ test('reads a nested file and marks it active in the tree', async ({ page }) => 
 
   await expect(page.locator('.cm-content')).toContainText('Endpoints live here.')
   await expect(page.getByRole('button', { name: 'api.md' })).toHaveAttribute('aria-current', 'true')
-  await expect(page.locator('.shell__readonly')).toContainText('Projects/api.md')
+  await expect(page.locator('.status__path')).toContainText('Projects/api.md')
 })
 
 test('switches between documents', async ({ page }) => {
@@ -114,24 +114,6 @@ test('switches between documents', async ({ page }) => {
   await page.getByRole('button', { name: 'todo.md' }).click()
   await expect(page.locator('.cm-content')).toContainText('# Todo')
   await expect(page.locator('.cm-content')).not.toContainText('# API')
-})
-
-test('a file on disk cannot be edited until autosave exists', async ({ page }) => {
-  await installFakePicker(page, FOLDER)
-  await openFolder(page)
-  await page.getByRole('button', { name: 'README.md' }).click()
-  await expect(page.locator('.cm-content')).toContainText('# Readme')
-
-  await page.locator('.cm-content').click()
-  await page.keyboard.type('EDITED')
-
-  // Read-only until M3: the app must not be able to hold unsaved changes to a real
-  // file before it can save them.
-  await expect(page.locator('.cm-content')).not.toContainText('EDITED')
-  const written = await page.evaluate(() => [
-    ...(window as unknown as { __writtenFiles: Map<string, string> }).__writtenFiles.keys(),
-  ])
-  expect(written).toEqual([])
 })
 
 test('the scratch document stays editable, since it is backed by no file', async ({ page }) => {

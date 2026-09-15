@@ -1,5 +1,5 @@
 import { fileSystemService } from '~/services/fileSystemService'
-import type { DirectoryNode, FileNode, FileTreeNode, OpenDocument } from '~/types/fileSystem'
+import type { DirectoryNode, FileNode, FileTreeNode } from '~/types/fileSystem'
 
 export type WorkspaceError =
   | { kind: 'unsupported' }
@@ -7,15 +7,19 @@ export type WorkspaceError =
   | { kind: 'read-failed'; path: string; message: string }
 
 /**
- * Workspace state: the open folder, which directories are expanded, and the
- * document currently being viewed.
+ * Workspace state: the open folder and which directories are expanded.
+ *
+ * The open document and its save state live in `useDocument`.
  *
  * Deliberately built on `useState` and plain refs rather than a store: the state is
  * three values, and every mutation goes through the functions below.
  */
 export function useWorkspace() {
+  // Resolved here, at setup time, rather than inside the async functions below:
+  // composables must not be called after an await.
+  const openDocuments = useDocument()
+
   const root = useState<DirectoryNode | null>('workspace:root', () => null)
-  const activeDocument = useState<OpenDocument | null>('workspace:document', () => null)
   const error = useState<WorkspaceError | null>('workspace:error', () => null)
   /** Paths of the directories the user has expanded. View state, not file state. */
   const expandedPaths = useState<string[]>('workspace:expanded', () => [])
@@ -53,6 +57,9 @@ export function useWorkspace() {
       return
     }
 
+    // Leaving a folder abandons the open document, so it has to be saved first.
+    if (!(await openDocuments.closeDocument())) return
+
     busy.value = true
     try {
       const directory = await fileSystemService.pickDirectory()
@@ -63,7 +70,6 @@ export function useWorkspace() {
       await loadChildren(directory)
       root.value = directory
       expandedPaths.value = [directory.path]
-      activeDocument.value = null
     } catch (cause) {
       error.value = toWorkspaceError(cause, '')
     } finally {
@@ -85,14 +91,19 @@ export function useWorkspace() {
     }
   }
 
+  /**
+   * Opens a file in the editor.
+   *
+   * The document layer owns reading and saving; this only reports a read failure in
+   * the explorer, next to the file the user clicked.
+   */
   async function openFile(file: FileNode): Promise<void> {
     error.value = null
     busy.value = true
     try {
-      const { text, stamp } = await fileSystemService.readFile(file)
-      activeDocument.value = { file, text, stamp }
-    } catch (cause) {
-      error.value = toWorkspaceError(cause, file.path)
+      await openDocuments.openDocument(file)
+      const failure = openDocuments.openError.value
+      if (failure !== null) error.value = { kind: 'read-failed', path: file.path, message: failure }
     } finally {
       busy.value = false
     }
@@ -124,7 +135,6 @@ export function useWorkspace() {
 
   return {
     root,
-    activeDocument,
     error: readonly(error),
     busy: readonly(busy),
     isSupported,

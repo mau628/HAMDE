@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import { welcomeDocument } from '~/editor/welcomeDocument'
 
-const { root, activeDocument, error, busy, isSupported, openFolder } = useWorkspace()
+const { root, error, busy, isSupported, openFolder } = useWorkspace()
+const { activeDocument, edit } = useDocument()
+
+// Ctrl+S, save on blur, save before the page closes.
+useAutoSave()
 
 /** Scratch text, used only while no file is open. Never written to disk. */
 const scratch = ref(welcomeDocument)
 
 const documentText = computed(() => activeDocument.value?.text ?? scratch.value)
 
-// A file on disk is read-only until autosave exists (M3). Until then the app cannot
-// hold unsaved changes to a real file, so it cannot lose them either.
-const isReadOnly = computed(() => activeDocument.value !== null)
-
 function onChange(text: string) {
-  if (activeDocument.value === null) scratch.value = text
+  if (activeDocument.value === null) {
+    scratch.value = text
+    return
+  }
+  edit(text)
 }
 </script>
 
@@ -45,10 +49,8 @@ function onChange(text: string) {
     </aside>
 
     <main class="shell__editor">
-      <MarkdownEditor :doc="documentText" :readonly="isReadOnly" @change="onChange" />
-      <p v-if="isReadOnly" class="shell__readonly">
-        {{ activeDocument?.file.path }} &middot; read-only until autosave lands
-      </p>
+      <MarkdownEditor :doc="documentText" @change="onChange" />
+      <SaveStatus />
     </main>
   </div>
 </template>

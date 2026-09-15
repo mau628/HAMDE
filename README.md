@@ -37,9 +37,10 @@ guarantee rather than a promise.
 
 ## Status
 
-M2 complete: open a local folder, browse it as a lazily-expanded tree, and read
-Markdown files. Files on disk are read-only until autosave lands in M3, so the
-app cannot hold unsaved changes it has no way to save yet. The document shown
-before a folder is opened is a scratch buffer, backed by no file.
+M3 complete: editing a file on disk now writes it back. Autosave runs 500 ms after
+the last keystroke, and immediately on Ctrl+S, on losing focus, when the tab is
+hidden, and before switching documents. The status line reports Saved, Unsaved
+changes, Saving, a save failure, or a file that changed outside the editor.
 
-Next: autosave, save states and Ctrl+S (M3). The live preview lands in M5.
+Next: the conflict resolution UI with Reload and Overwrite (M4). The live preview
+lands in M5.
