@@ -56,21 +56,25 @@ test('undoes and redoes an edit', async ({ page }) => {
 test('continues a list when Enter is pressed', async ({ page }) => {
   await openEditor(page)
 
-  // Put the cursor at the end of the "- Apple" line and add a sibling item.
-  await page.getByText('- Apple', { exact: true }).click()
+  // The list marker renders as a bullet, so the line reads "• Apple" on screen.
+  await page.locator('.cm-line', { hasText: 'Apple' }).first().click()
   await page.keyboard.press('End')
   await page.keyboard.press('Enter')
   await page.keyboard.type('Banana')
 
+  // The new item carries a marker of its own: on the cursor's line it shows as
+  // source, which is how we know the keymap inserted "- " and not just a newline.
   expect(await editorText(page)).toContain('- Banana')
 })
 
-test('keeps the Markdown source intact rather than rendering it away', async ({ page }) => {
+test('keeps the Markdown source in the document, revealed on the cursor line', async ({ page }) => {
   await openEditor(page)
+  await page.keyboard.press('ControlOrMeta+End')
 
-  // The document must still contain its own syntax: the editor decorates, it does
-  // not transform. Live preview (M5) hides marks visually, never in the document.
-  const text = await editorText(page)
-  expect(text).toContain('**bold**')
-  expect(text).toContain('# YAMDE')
+  // Rendered: the syntax is hidden, not removed.
+  expect(await editorText(page)).not.toContain('**bold**')
+
+  // The document still holds it, and putting the cursor on the line shows it again.
+  await page.locator('.cm-line', { hasText: 'Text can be' }).first().click()
+  expect(await editorText(page)).toContain('**bold**')
 })

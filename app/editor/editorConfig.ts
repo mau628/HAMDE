@@ -4,6 +4,7 @@ import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, drawSelection, highlightSpecialChars, keymap } from '@codemirror/view'
 
 import { markdownHighlightStyle } from './highlightStyle'
+import { livePreview } from './livePreview'
 import { createMarkdownSupport } from './markdown'
 import { editorTheme } from './theme'
 
@@ -37,6 +38,8 @@ export function createEditorExtensions(): Extension[] {
 
     createMarkdownSupport(),
     syntaxHighlighting(markdownHighlightStyle),
+    // Renders Markdown in place, revealing the syntax of the line the cursor is on.
+    livePreview(),
     editorTheme,
   ]
 }

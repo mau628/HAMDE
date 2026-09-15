@@ -32,13 +32,14 @@ guarantee rather than a promise.
 
 ## Documentation
 
+- [docs/live-preview.md](docs/live-preview.md) — how the rendering works and what it deliberately does not render
 - [docs/security.md](docs/security.md) — threat model and every security decision
 - [docs/dependencies.md](docs/dependencies.md) — why each dependency exists, and what was rejected
 
 ## Status
 
-M4 complete: when a file changes outside the editor, the app stops, says so, and
-asks whether to Reload (take the file on disk) or Overwrite (keep the editor
-version). Nothing is written until that choice is made, and Reload stays undoable.
+M5 complete: the live preview. Markdown renders in place and the line the cursor
+is on shows its syntax; the document itself is never transformed. Links open on
+Ctrl/Cmd+click, and only after their protocol is checked.
 
-Next: the Obsidian-style live preview (M5), which is the point of the project.
+Next: interactive task checkboxes (M6), fenced code highlighting (M7), Mermaid (M8).

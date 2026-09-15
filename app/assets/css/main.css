@@ -12,6 +12,7 @@
   --color-selection: #d6e4f7;
   --color-warning: #a33b2a;
   --color-warning-bg: #fdf1ee;
+  --color-code-bg: #f2f2ef;
 
   /* Syntax colours, shared by Markdown punctuation and fenced code blocks. */
   --color-syntax-mark: #a8a8a1;
@@ -20,6 +21,7 @@
   --color-syntax-number: #9a5b13;
   --color-syntax-function: #2f6ea8;
   --color-syntax-type: #1f7c86;
+  --color-syntax-property: #7a5a1f;
 
   --explorer-width: 260px;
   --space: 8px;
@@ -36,6 +38,7 @@
     --color-selection: #2c4260;
     --color-warning: #e08b7a;
     --color-warning-bg: #3a2420;
+    --color-code-bg: #262625;
 
     --color-syntax-mark: #6a6a63;
     --color-syntax-keyword: #c792ea;
@@ -43,6 +46,7 @@
     --color-syntax-number: #e0a35f;
     --color-syntax-function: #82aaff;
     --color-syntax-type: #6fd3d9;
+    --color-syntax-property: #e0c07a;
   }
 }
 

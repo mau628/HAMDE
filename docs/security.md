@@ -16,7 +16,7 @@ What we defend against:
 | Threat | Defence |
 | --- | --- |
 | Script embedded in a document (`<script>`, `onclick`, …) | Embedded HTML is never inserted into the DOM. It is displayed as highlighted text. |
-| `javascript:` / `data:` links | Link targets are validated against an allowlist before being opened. |
+| `javascript:` / `data:` links | `isSafeHref` parses the target with `URL` and allows only https, http and mailto. Anything else is inert text. |
 | Exfiltration of note content | `connect-src 'none'`, plus a build-time check that no remote origin appears in the output. |
 | Tracking via remote images | Remote image URLs are not loaded. Only images from the user's folder are rendered, through `blob:` URLs. |
 | Accidental data loss | Conflict detection before every write; changes are never discarded silently. |
