@@ -1,13 +1,14 @@
 /**
- * Placeholder document shown until the file system lands in M2.
+ * The document shown before a folder is opened.
  *
- * It doubles as a manual smoke test of the constructs the editor has to handle,
- * so every Markdown feature in scope appears at least once.
+ * It is a scratch buffer: editable, backed by no file, and discarded on reload —
+ * so there is nothing to lose. It also doubles as a manual smoke test, because
+ * every Markdown construct in scope appears at least once.
  */
-export const sampleDocument = `# YAMDE
+export const welcomeDocument = `# YAMDE
 
-A local Markdown editor. This document is a placeholder: opening a folder arrives
-in the next milestone.
+A local Markdown editor. Open a folder on the left to edit your own notes; this
+page is a scratch buffer and is not saved anywhere.
 
 ## Inline formatting
 

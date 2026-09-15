@@ -74,6 +74,22 @@ Decisions worth knowing about:
 - Unit tests assert the shape of the policy, including that it never contains
   `'unsafe-inline'` in `script-src`.
 
+## The file system boundary
+
+Only `app/services/fileSystemService.ts` names the File System Access API. Every
+other module works with the plain node types in `app/types/fileSystem.ts`, which
+keeps handles, writable streams and permission prompts in one auditable place.
+`tests/unit/architecture.spec.ts` fails if any other module reaches for the API,
+so the boundary is enforced rather than documented.
+
+Two properties of the write path matter for data safety:
+
+- Writes open the stream with `keepExistingData: true` and truncate explicitly, so
+  a crash mid-write leaves the old tail rather than an empty file.
+- `writeFile` compares the file s current stamp against the one it was read with and
+  refuses to overwrite a file that changed underneath. Conflict handling has been
+  part of the contract since the function existed; M4 adds the UI for it.
+
 ## No telemetry
 
 No analytics, no error reporting, no remote logging, no CDN assets, no remote fonts or

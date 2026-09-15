@@ -37,8 +37,9 @@ guarantee rather than a promise.
 
 ## Status
 
-M1 complete: static SPA with the security baseline in place, and a CodeMirror 6
-editor parsing Markdown with GFM (tables, task lists, strikethrough, autolinks),
-syntax highlighting, undo/redo and list continuation.
+M2 complete: open a local folder, browse it as a lazily-expanded tree, and read
+Markdown files. Files on disk are read-only until autosave lands in M3, so the
+app cannot hold unsaved changes it has no way to save yet. The document shown
+before a folder is opened is a scratch buffer, backed by no file.
 
-Next: opening a real folder (M2). The live preview lands in M5.
+Next: autosave, save states and Ctrl+S (M3). The live preview lands in M5.

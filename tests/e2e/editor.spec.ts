@@ -43,14 +43,14 @@ test('types text into the document', async ({ page }) => {
 test('undoes and redoes an edit', async ({ page }) => {
   await openEditor(page)
   await page.keyboard.press('ControlOrMeta+Home')
-  await page.keyboard.type('scratch')
-  expect(await editorText(page)).toContain('scratch')
+  await page.keyboard.type('zzprobe')
+  expect(await editorText(page)).toContain('zzprobe')
 
   await page.keyboard.press('ControlOrMeta+z')
-  expect(await editorText(page)).not.toContain('scratch')
+  expect(await editorText(page)).not.toContain('zzprobe')
 
   await page.keyboard.press('ControlOrMeta+Shift+z')
-  expect(await editorText(page)).toContain('scratch')
+  expect(await editorText(page)).toContain('zzprobe')
 })
 
 test('continues a list when Enter is pressed', async ({ page }) => {
