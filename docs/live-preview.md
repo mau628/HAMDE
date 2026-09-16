@@ -54,8 +54,8 @@ The price is that **no replacement here may cover a newline**. Two consequences:
 
 - A setext heading (`Title` over `=====`) keeps its underline visible. Hiding it would
   mean removing a line, which is a vertical layout change.
-- A rendered Mermaid diagram replaces a whole block, so it comes from a state field
-  provided directly (`blockPreview.ts`) rather than from the plugin.
+- A rendered Mermaid diagram or table replaces a whole block, so it comes from a
+  state field provided directly (`blockPreview.ts`) rather than from the plugin.
 
 A unit test asserts the invariant directly: for a set of documents including malformed
 ones, no hidden range contains a `\n`.
@@ -72,7 +72,7 @@ ones, no hidden range contains a `\n`.
 | Link | Text shown, `[`, `](url "title")` hidden; Ctrl/Cmd+click opens it. A link with no text, or one whose destination wraps onto another line, stays as source |
 | Autolink | Styled; a bracketed autolink (`<https://…>`) has its brackets hidden |
 | Reference link | Left intact: the label matters to the reader |
-| Table | Styled as monospace source, never replaced — it stays editable |
+| Table | Replaced by a rendered grid, with column alignment and the inline Markdown in each cell. Click a cell, or arrow into it, to edit the source. A table inside a blockquote or a list stays as source |
 | Horizontal rule | Line styled with a border, dashes kept |
 | Fenced code | Lines styled as a code block, with the language highlighted. The fence lines stay visible: hiding a whole line is a vertical layout change |
 | Mermaid | Replaced by the rendered diagram. Click it, or arrow into it, to see the source |
@@ -121,8 +121,9 @@ from under them.
 
 ## The block layer
 
-A second layer exists for structures replaced as a whole. It is a state field,
-provided directly, because that is the only way to introduce a block widget.
+A second layer exists for structures replaced as a whole — a Mermaid diagram and a
+table. It is a state field, provided directly, because that is the only way to
+introduce a block widget.
 
 What that costs and how it is paid:
 
@@ -157,8 +158,8 @@ Rendered diagrams are cached by their source, so moving the cursor around a
 document never re-renders one. An invalid diagram shows the parse error with the
 source underneath, and becomes a drawing again as soon as it parses.
 
-The SVG is the only generated markup this app puts in the DOM, and it does not go
-in through `innerHTML`: it is parsed with `DOMParser` and scrubbed of script
+The SVG is the only markup this app parses from a string, and it does not go in
+through `innerHTML`: it is parsed with `DOMParser` and scrubbed of script
 elements, event-handler attributes and unsafe link targets first. See
 docs/security.md.
 
@@ -166,6 +167,74 @@ docs/security.md.
 
 The diagram theme follows the system colour scheme when the first diagram renders.
 Switching the system theme afterwards needs a reload.
+
+## Tables
+
+Until M10 a table was styled source in a monospace font, on the grounds that it
+stayed editable. It did — and it also meant the one construct whose whole purpose is
+to line data up was the one construct the reader had to line up in their head. A
+table is now a table.
+
+Editing survives, and not by accident:
+
+- **The cursor anywhere in the table shows the source**, in the same monospace
+  styling as before. That comes free from the reveal rule: a block replacement is
+  suppressed for any line the selection touches.
+- **A click lands in the cell that was clicked.** The block's own start is not
+  enough: every correction would begin by hunting for the right pipe. Each cell
+  carries its offset from the start of the block, and the click adds that to the
+  position the DOM reports. An *offset*, not a position, because CodeMirror reuses a
+  widget wherever an equal one is needed — a position captured when the widget was
+  built can belong to another part of the document by the time it is clicked.
+- **Arrowing into it works** through the same `ArrowUp`/`ArrowDown` handling every
+  replaced block uses.
+
+### Cells are rebuilt, not decorated
+
+Everywhere else the preview hides and styles the characters that are already on
+screen. Inside a widget there is nothing to decorate, so a cell's content is built:
+`inlineModel.ts` turns the cell's subtree into plain data, and `inlineToDom.ts`
+turns that data into elements — with `createElement` and text nodes, never
+`innerHTML`, which is the same rule every other widget here follows. The classes are
+the ones the inline layer already applies, so bold in a cell looks like bold in a
+paragraph.
+
+The split is not decoration: the data depends only on the block's own text, which is
+what lets the widget compare equal to another built from the same source and keep
+its DOM. It is also testable without a browser.
+
+Two things in a cell are deliberately left as literal Markdown. An **image**, because
+rendering one is an async read through the directory handle that would change the
+row's height after the fact; and a **reference link**, because there is no URL to
+resolve and the label is what the reader needs. A link's target still goes through
+the same `isSafeHref` as the rest of the editor, so a `javascript:` destination
+never reaches the DOM.
+
+### What the parser decides, and what that costs
+
+Three behaviours come from the parser rather than from a choice here, and the shapes
+are pinned in `tests/unit/treeShape.spec.ts`:
+
+- **An empty cell produces no node at all**, so columns are counted from the
+  separators. Counting cells moved every value after an empty one a column to the
+  left.
+- **A separator row that does not match the header** is not a table, so alignment
+  always has one entry per column.
+- **A pipe inside inline code still splits the cell.** `` `a | b` `` is two cells.
+  Nothing here can fix that without a second Markdown parser.
+
+### Known limitations
+
+- **A table inside a blockquote or a list item stays as source.** A block
+  replacement covers whole lines, so the rendered grid would swallow the `>` or the
+  indentation that puts it there and read as a top-level table.
+- **Cells wrap before the table scrolls.** A table that cannot fit the editor's
+  measure gets a horizontal scrollbar of its own; one that can fit by wrapping its
+  cells does that instead, which is what reading wants. Either way the document
+  itself never widens.
+- **A paragraph line straight after the last row is another row**, per GFM. That is
+  the parser's reading of the document and the rendered table shows it honestly —
+  which can be surprising while typing a table at the end of a file.
 
 ## Images
 

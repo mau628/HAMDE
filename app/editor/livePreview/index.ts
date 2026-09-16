@@ -7,6 +7,7 @@ import { openExternal } from '~/services/links'
 import { blockPreview } from './blockPreview'
 import { buildPreviewDecorations } from './decorations'
 import { mermaidRenderer } from './mermaid'
+import { tableRenderer } from './table'
 
 /**
  * Obsidian-style live preview.
@@ -30,14 +31,18 @@ import { mermaidRenderer } from './mermaid'
  *   inline decorations want — a 50,000-line document costs the same as a short one.
  *   Nothing here may replace a line break.
  * - **Block** (`blockPreview.ts`): a state field, provided directly, for structures
- *   replaced as a whole. A rendered Mermaid diagram is one; a rendered table would
- *   be another.
+ *   replaced as a whole — a rendered Mermaid diagram and a rendered table.
  *
  * The inline layer skips whatever the block layer has replaced, so the two never
  * decorate the same text.
  */
 export function livePreview(): Extension {
-  return [blockPreview([mermaidRenderer]), previewPlugin, atomicHiddenRanges, linkClicks]
+  return [
+    blockPreview([mermaidRenderer, tableRenderer]),
+    previewPlugin,
+    atomicHiddenRanges,
+    linkClicks,
+  ]
 }
 
 class LivePreview {

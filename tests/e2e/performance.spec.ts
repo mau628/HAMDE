@@ -152,3 +152,52 @@ test('moving the cursor past a diagram does not re-render it', async ({ page }) 
 
   await expect(page.locator('.cm-md-diagram svg[data-original="yes"]')).toHaveCount(1)
 })
+
+/**
+ * Tables are the common case for the block layer, which walks the whole document
+ * rather than the viewport: there are documents with hundreds of tables, and almost
+ * none with hundreds of diagrams. This is the tripwire for that walk, and for
+ * rebuilding a cell's content on every keystroke.
+ */
+test('a document of tables stays responsive', async ({ page }) => {
+  const tables = Array.from(
+    { length: 100 },
+    (_, index) =>
+      [
+        '| name | value | note |',
+        '| :--- | ----: | :--: |',
+        '| row ' + index + ' | ' + index + ' | **bold** |',
+        '| row ' + index + ' | ' + index + ' | `code` |',
+      ].join('\n') + '\n',
+  ).join('\n')
+
+  await openFolder(page, { 'tables.md': tables }, 'tables.md')
+  await expect(page.locator('.cm-md-table__grid').first()).toBeVisible()
+
+  await page.locator('.cm-content').click()
+  const cost = await cursorCost(page)
+
+  expect(cost.median).toBeLessThan(120)
+})
+
+test('moving the cursor past a table does not rebuild it', async ({ page }) => {
+  const table = ['| a | b |', '| - | - |', '| 1 | 2 |'].join('\n')
+  await openFolder(
+    page,
+    { 'one.md': table + '\n\n' + 'filler\n\n'.repeat(20) },
+    'one.md',
+  )
+  await page.locator('.cm-content').click()
+  await page.keyboard.press('ControlOrMeta+End')
+  await expect(page.locator('.cm-md-table__grid')).toHaveCount(1)
+
+  // Tag the rendered node; rebuilding the widget would replace it.
+  await page.evaluate(() => {
+    document.querySelector('.cm-md-table__grid')?.setAttribute('data-original', 'yes')
+  })
+
+  for (let index = 0; index < 8; index += 1) await page.keyboard.press('ArrowUp')
+  for (let index = 0; index < 8; index += 1) await page.keyboard.press('ArrowDown')
+
+  await expect(page.locator('.cm-md-table__grid[data-original="yes"]')).toHaveCount(1)
+})

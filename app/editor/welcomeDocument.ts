@@ -30,10 +30,10 @@ A [link](https://example.com) and an autolink: https://example.com
 
 ## Table
 
-| Language   | Kind     |
-| ---------- | -------- |
-| TypeScript | compiled |
-| Markdown   | markup   |
+| Language   | Kind     | Year |
+| ---------- | -------- | ---: |
+| TypeScript | compiled | 2012 |
+| Markdown   | markup   | 2004 |
 
 ## Code
 

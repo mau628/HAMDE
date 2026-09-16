@@ -46,7 +46,8 @@ Node.js 24.11 or newer for development.
   never transformed: it stays exactly the Markdown you wrote.
 - **Task lists you can click.** A checkbox changes one character of the file.
 - **GitHub Flavored Markdown**: tables, task lists, strikethrough and autolinks.
-  Tables stay as editable source, aligned in a monospace font.
+- **Tables rendered as tables**, with column alignment and the inline Markdown
+  inside each cell. Click a cell, or arrow into the table, to edit its source.
 - **Fenced code, highlighted** in JavaScript, TypeScript, JSON, HTML, CSS, SQL, XML,
   YAML, bash, PowerShell and C#. Each grammar is downloaded only if a document uses
   it.
@@ -96,5 +97,5 @@ without a byte leaving the machine.
 
 Not yet done: deployment to GitHub Pages, which is configuration rather than code.
 
-Possible next steps, none of which the editor needs rewriting for: rendered tables,
-wikilinks, remembering the last folder across sessions, and search.
+Possible next steps, none of which the editor needs rewriting for: wikilinks,
+remembering the last folder across sessions, and search.

@@ -3,6 +3,7 @@ import { WidgetType, type EditorView } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 
 import { cachedDiagram, renderDiagram } from '~/services/mermaidService'
+import { blockStart, moveCursorTo } from './blockCursor'
 import type { BlockRenderer } from './blockPreview'
 
 /**
@@ -98,18 +99,13 @@ export class MermaidWidget extends WidgetType {
 
   /** Moves the cursor into the block this widget stands for. */
   private placeCursorInside(view: EditorView, container: HTMLElement): void {
-    let position: number
-    try {
-      position = view.posAtDOM(container)
-    } catch {
-      return
-    }
+    const start = blockStart(view, container)
+    if (start === null) return
 
     // One past the block's first character, so the cursor lands on a line inside
     // the block rather than on the boundary between it and the paragraph above.
-    const line = view.state.doc.lineAt(position)
-    view.dispatch({ selection: { anchor: Math.min(line.to, position + 1) }, scrollIntoView: true })
-    view.focus()
+    const line = view.state.doc.lineAt(start)
+    moveCursorTo(view, Math.min(line.to, start + 1))
   }
 }
 

@@ -107,3 +107,5 @@ change that turns a linear cost into a quadratic one rather than a benchmark.
 | 10 levels of nesting | only the expanded level is read |
 | 20 Mermaid diagrams | all render; cursor moves stay within a frame or two |
 | Moving the cursor past a diagram | no re-render, the SVG node is reused |
+| 100 rendered tables | opens in ~300 ms, 8 grids in the DOM, cursor moves ~17 ms (one frame) |
+| Moving the cursor past a table | no rebuild, the table node is reused |

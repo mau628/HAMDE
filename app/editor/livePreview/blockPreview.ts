@@ -32,8 +32,17 @@ export interface BlockRenderer {
   matches: (node: SyntaxNodeRef, state: EditorState) => boolean
   /** The content that decides whether two renders are the same. */
   source: (state: EditorState, node: SyntaxNodeRef) => string
-  /** Builds the widget. Called on every rescan, so it must be cheap. */
-  widget: (source: string) => WidgetType
+  /**
+   * Builds the widget. Called on every rescan, so it must be cheap.
+   *
+   * The state and node are passed for a renderer that needs the syntax tree to
+   * build what it draws — a table reads its cells from it. Whatever the widget
+   * keeps must be derivable from `source` alone, because that is what `eq`
+   * compares: CodeMirror reuses an equal widget wherever it is needed, so a
+   * document position captured here can belong somewhere else by the time it is
+   * used. An offset from the block's own start is safe; an absolute position is not.
+   */
+  widget: (source: string, state: EditorState, node: SyntaxNodeRef) => WidgetType
 }
 
 interface Block {
@@ -175,7 +184,7 @@ function scan(state: EditorState): Block[] {
           // line boundaries even when the node itself starts indented.
           from: state.doc.lineAt(node.from).from,
           to: state.doc.lineAt(node.to).to,
-          widget: renderer.widget(renderer.source(state, node)),
+          widget: renderer.widget(renderer.source(state, node), state, node),
         })
         return false
       }

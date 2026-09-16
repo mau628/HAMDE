@@ -153,13 +153,19 @@ which encodes HTML in diagram labels and disables click directives. Labels are
 rendered as SVG text rather than embedded HTML (`htmlLabels: false`), so diagram
 content has one less way to become markup.
 
-The rendered SVG is the only generated markup the app inserts, and it is **not**
+The rendered SVG is the only markup the app parses from a string, and it is **not**
 inserted with `innerHTML`. It is parsed with `DOMParser` as `image/svg+xml`,
 which executes nothing, and then scrubbed: script elements are removed, every
 attribute whose name starts with `on` is dropped, and any `href` that is not
 http, https, mailto or a fragment is dropped. That is defence in depth — strict
-mode should already have neutralised all of it — and it means no string in this
-codebase is ever interpreted as HTML.
+mode should already have neutralised all of it.
+
+A rendered table is built the other way round, and is the shape every other widget
+in this app takes: elements from `createElement`, text from text nodes, and a link's
+destination refused by `isSafeHref` before an `href` is ever set. A cell containing
+`<img src=x onerror=…>` is therefore text that says so, which an end-to-end test
+asserts along with the absence of any `on*` attribute or `javascript:` href inside
+the grid. No string in this codebase is interpreted as HTML.
 
 An end-to-end test feeds a diagram containing `<img onerror>`, `<script>` and a
 `click … "javascript:"` directive, and asserts that the rendered result contains

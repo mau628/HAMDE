@@ -320,7 +320,10 @@ describe('cases that used to render wrong', () => {
 })
 
 describe('tables, rules and code blocks', () => {
-  it('keeps a table as editable source and styles its lines', () => {
+  // The rendered grid is the block layer's business, which this state does not
+  // include. Here the table is source, and the source is styled as one — which is
+  // exactly what shows while the cursor is inside a table.
+  it('styles the source of a table', () => {
     const doc = '| a | b |\n| - | - |\n| 1 | 2 |\n'
     expect(rendered(doc, 100)).toBe(doc)
     expect(allClasses(doc, 100)).toContain('cm-md-table-line')

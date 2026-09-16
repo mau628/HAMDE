@@ -271,4 +271,64 @@ describe('parse tree shapes the live preview depends on', () => {
             TableDelimiter "|""
     `)
   })
+
+  /**
+   * The rendered table counts its columns from the separators rather than from the
+   * cells, because of this: an empty cell produces no `TableCell` at all.
+   */
+  it('table with an empty cell', () => {
+    expect(shape('| a | b |\n| - | - |\n| 1 |  |\n')).toMatchInlineSnapshot(`
+      "Document "| a | b |\\\\n| - | - |\\\\n| 1 |  |\\\\n"
+        Table "| a | b |\\\\n| - | - |\\\\n| 1 |  |"
+          TableHeader "| a | b |"
+            TableDelimiter "|"
+            TableCell "a"
+            TableDelimiter "|"
+            TableCell "b"
+            TableDelimiter "|"
+          TableDelimiter "| - | - |"
+          TableRow "| 1 |  |"
+            TableDelimiter "|"
+            TableCell "1"
+            TableDelimiter "|"
+            TableDelimiter "|""
+    `)
+  })
+
+  /** An escaped pipe is an `Escape` inside the cell, and does not end it. */
+  it('table with an escaped pipe', () => {
+    expect(shape('| a \\| b | c |\n| - | - |\n')).toMatchInlineSnapshot(`
+      "Document "| a \\\\| b | c |\\\\n| - | - |\\\\n"
+        Table "| a \\\\| b | c |\\\\n| - | - |"
+          TableHeader "| a \\\\| b | c |"
+            TableDelimiter "|"
+            TableCell "a \\\\| b"
+              Escape "\\\\|"
+            TableDelimiter "|"
+            TableCell "c"
+            TableDelimiter "|"
+          TableDelimiter "| - | - |""
+    `)
+  })
+
+  /** Alignment lives in the one `TableDelimiter` that is a child of the table. */
+  it('table with alignment', () => {
+    expect(shape('| a | b |\n| :- | -: |\n| 1 | 2 |\n')).toMatchInlineSnapshot(`
+      "Document "| a | b |\\\\n| :- | -: |\\\\n| 1 | 2 |\\\\n"
+        Table "| a | b |\\\\n| :- | -: |\\\\n| 1 | 2 |"
+          TableHeader "| a | b |"
+            TableDelimiter "|"
+            TableCell "a"
+            TableDelimiter "|"
+            TableCell "b"
+            TableDelimiter "|"
+          TableDelimiter "| :- | -: |"
+          TableRow "| 1 | 2 |"
+            TableDelimiter "|"
+            TableCell "1"
+            TableDelimiter "|"
+            TableCell "2"
+            TableDelimiter "|""
+    `)
+  })
 })

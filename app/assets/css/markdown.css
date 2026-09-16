@@ -177,8 +177,35 @@
   background: var(--color-code-bg);
 }
 
-/* Tables stay editable source, aligned with a monospace font rather than being
-   replaced by a rendered grid. See docs/dependencies.md for the reasoning. */
+/* A rendered table. The container scrolls rather than the page: a table with more
+   columns than the editor is wide must not widen the document. */
+.cm-editor .cm-md-table {
+  padding: 8px 0;
+  overflow-x: auto;
+}
+
+.cm-editor .cm-md-table__grid {
+  border-collapse: collapse;
+  /* `auto` over `fixed`: column widths should follow the content, as they would in
+     any other rendering of the same table. */
+  table-layout: auto;
+  font-size: 0.95em;
+}
+
+.cm-editor .cm-md-table__cell {
+  padding: 4px 10px;
+  text-align: left;
+  vertical-align: top;
+  border: 1px solid var(--color-border);
+}
+
+.cm-editor .cm-md-table thead .cm-md-table__cell {
+  font-weight: 600;
+  background: var(--color-bg-panel);
+}
+
+/* The source, shown while the cursor is inside the table: monospace, so the pipes
+   line up and the columns are editable by eye. */
 .cm-editor .cm-md-table-line {
   font-family: var(--font-mono);
   font-size: 0.92em;

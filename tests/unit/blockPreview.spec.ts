@@ -10,6 +10,7 @@ import {
 } from '../../app/editor/livePreview/blockPreview'
 import { buildPreviewDecorations } from '../../app/editor/livePreview/decorations'
 import { mermaidRenderer } from '../../app/editor/livePreview/mermaid'
+import { tableRenderer } from '../../app/editor/livePreview/table'
 import { createMarkdownSupport } from '../../app/editor/markdown'
 
 /**
@@ -217,5 +218,102 @@ describe('the two layers do not overlap', () => {
     // The fence is styled as code again, and the paragraph below is still Markdown.
     expect(classes).toContain('cm-md-code-line')
     expect(classes).toContain('cm-md-strong')
+  })
+})
+
+/**
+ * Tables go through the same layer, with the real renderer: building a
+ * `TableWidget` touches no DOM, so only `toDOM` needs a browser.
+ */
+describe('tables', () => {
+  const TABLE = ['| a | b |', '| - | - |', '| 1 | 2 |'].join('\n')
+  const doc = 'text\n\n' + TABLE + '\n\nmore\n'
+
+  function withTables(source: string, cursor: number): EditorState {
+    return stateFor(source, cursor, [tableRenderer])
+  }
+
+  function replacedTables(source: string, cursor: number): string[] {
+    const state = withTables(source, cursor)
+    return replacedBlockRanges(state).map((range) => state.doc.sliceString(range.from, range.to))
+  }
+
+  it('replaces a table when the cursor is elsewhere', () => {
+    expect(replacedTables(doc, 0)).toEqual([TABLE])
+  })
+
+  it('shows the source when the cursor is on any of its lines', () => {
+    for (const line of ['| a | b |', '| - | - |', '| 1 | 2 |']) {
+      expect(replacedTables(doc, doc.indexOf(line) + 2)).toEqual([])
+    }
+  })
+
+  it('renders a header-only table', () => {
+    const headerOnly = ['| a | b |', '| - | - |'].join('\n')
+    expect(replacedTables(headerOnly + '\n\ntail\n', 1000)).toEqual([headerOnly])
+  })
+
+  it('leaves a table inside a blockquote as source', () => {
+    // The replacement covers whole lines, which would swallow the `>` markers.
+    const quoted = ['> | a |', '> | - |', '> | 1 |'].join('\n') + '\n'
+    expect(replacedTables(quoted, 1000)).toEqual([])
+  })
+
+  it('claims whole lines, so the replacement is a block', () => {
+    const state = withTables(doc, 0)
+    const [range] = replacedBlockRanges(state)
+
+    expect(state.doc.lineAt(range!.from).from).toBe(range!.from)
+    expect(state.doc.lineAt(range!.to).to).toBe(range!.to)
+  })
+
+  it('keeps the same widget when the table has not changed', () => {
+    const state = withTables(doc, 0)
+    const before = state.field(blockPreviewField).blocks[0]!.widget
+
+    const edited = state.update({ changes: { from: doc.length - 1, insert: '!' } }).state
+    const after = edited.field(blockPreviewField).blocks[0]!.widget
+
+    expect(after.eq(before)).toBe(true)
+  })
+
+  it('makes a different widget when a cell changes', () => {
+    const state = withTables(doc, 0)
+    const before = state.field(blockPreviewField).blocks[0]!.widget
+
+    const cell = doc.indexOf('| 1 |') + 2
+    const edited = state.update({ changes: { from: cell, to: cell + 1, insert: '9' } }).state
+    const after = edited.field(blockPreviewField).blocks[0]!.widget
+
+    expect(after.eq(before)).toBe(false)
+  })
+
+  it('decorates nothing inside the replaced table', () => {
+    const bold = ['| a | b |', '| - | - |', '| **x** | y |'].join('\n') + '\n'
+    const state = withTables(bold, bold.length)
+    const { decorations, hidden } = buildPreviewDecorations(state, [{ from: 0, to: bold.length }])
+    const [block] = replacedBlockRanges(state)
+
+    let inside = 0
+    decorations.between(block!.from, block!.to, () => {
+      inside += 1
+    })
+    hidden.between(block!.from, block!.to, () => {
+      inside += 1
+    })
+
+    expect(inside).toBe(0)
+  })
+
+  it('styles the source as a table again once revealed', () => {
+    const state = withTables(doc, doc.indexOf('| 1 | 2 |') + 2)
+    const { decorations } = buildPreviewDecorations(state, [{ from: 0, to: doc.length }])
+
+    const classes = new Set<string>()
+    decorations.between(0, doc.length, (_from, _to, value) => {
+      if (typeof value.spec.class === 'string') classes.add(value.spec.class)
+    })
+
+    expect(classes).toContain('cm-md-table-line')
   })
 })
