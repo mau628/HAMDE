@@ -67,4 +67,11 @@ export interface FileSystemService {
   writeFile(file: FileNode, text: string, expected: FileStamp | null): Promise<WriteResult>
   /** Ensures write permission is still granted, prompting if the browser allows. */
   ensureWritePermission(node: FileTreeNode): Promise<boolean>
+  /**
+   * Reads any file inside the workspace by its relative path.
+   *
+   * For images, which are referenced by path from a document rather than picked
+   * from the tree. Resolves to `null` when the path does not lead to a file.
+   */
+  readFileAtPath(directory: DirectoryNode, path: string): Promise<File | null>
 }

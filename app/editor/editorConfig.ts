@@ -4,6 +4,7 @@ import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, drawSelection, highlightSpecialChars, keymap } from '@codemirror/view'
 
 import { markdownHighlightStyle } from './highlightStyle'
+import { imageResolver, type ImageResolver } from './livePreview/images'
 import { livePreview } from './livePreview'
 import { createMarkdownSupport } from './markdown'
 import { editorTheme } from './theme'
@@ -15,8 +16,18 @@ import { editorTheme } from './theme'
  * bundle brings search, autocompletion, bracket matching, code folding and a
  * gutter, none of which belong in a minimal prose editor.
  */
-export function createEditorExtensions(): Extension[] {
+export interface EditorOptions {
+  /**
+   * Turns an image path in a document into something the browser can show.
+   *
+   * Supplied by the app, which is the part that knows about the open folder.
+   */
+  resolveImage: ImageResolver
+}
+
+export function createEditorExtensions(options: EditorOptions): Extension[] {
   return [
+    imageResolver.of(options.resolveImage),
     // Undo/redo. CodeMirror's history is transaction-aware, so it will treat the
     // live-preview decorations (M5) and widget edits (M6) correctly.
     history(),

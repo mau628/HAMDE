@@ -91,3 +91,19 @@ actually drawn.
 - **Mermaid 12.0.0** was published 2026-09-10. Before adopting it, M8 verifies the
   `initialize` / `parse` / `render` contract; if there is friction, we pin the last
   11.x release instead.
+
+## Performance budgets
+
+Measured in Chromium on the generated build. The end-to-end suite asserts
+thresholds several times looser than these, so the tests are a tripwire for a
+change that turns a linear cost into a quadratic one rather than a benchmark.
+
+| Case | Result |
+| --- | --- |
+| 1.3 MB document, 20,000 lines | opens in ~160 ms, 40 line elements in the DOM |
+| Cursor move in that document | ~17 ms, one frame |
+| One 20,000-line blockquote | same as a short document (it was 56 ms per keystroke before the scan was clamped) |
+| 5,000 files in a folder | opens immediately; only the root level is read |
+| 10 levels of nesting | only the expanded level is read |
+| 20 Mermaid diagrams | all render; cursor moves stay within a frame or two |
+| Moving the cursor past a diagram | no re-render, the SVG node is reused |

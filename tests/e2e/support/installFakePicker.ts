@@ -15,7 +15,22 @@ import type { Page } from '@playwright/test'
  *   so conflict detection can be tested.
  * - `__editFileOnDisk(path, contents)`: rewrites a file behind the app's back.
  */
-export type FakeFolder = { [name: string]: string | FakeFolder }
+
+/** A binary file: base64 content plus the type the browser should see. */
+export interface FakeBinary {
+  base64: string
+  type: string
+}
+
+export type FakeEntry = string | FakeBinary | FakeFolder
+export type FakeFolder = { [name: string]: FakeEntry }
+
+/** A 1x1 transparent PNG, for tests that just need a real image. */
+export const TINY_PNG: FakeBinary = {
+  base64:
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  type: 'image/png',
+}
 
 export async function installFakePicker(page: Page, folder: FakeFolder): Promise<void> {
   await page.addInitScript((tree: FakeFolder) => {
@@ -40,6 +55,24 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
       }
       return state
     }
+
+    const isBinary = (value: unknown): value is { base64: string; type: string } =>
+      typeof value === 'object' && value !== null && 'base64' in value
+
+    const makeBinaryHandle = (name: string, binary: { base64: string; type: string }) => ({
+      kind: 'file' as const,
+      name,
+      async getFile() {
+        const bytes = Uint8Array.from(atob(binary.base64), (c) => c.charCodeAt(0))
+        return new File([bytes], name, { type: binary.type })
+      },
+      async queryPermission() {
+        return 'granted' as const
+      },
+      async requestPermission() {
+        return 'granted' as const
+      },
+    })
 
     const makeFileHandle = (name: string, path: string, initial: string) => {
       const state = stateFor(path, initial)
@@ -91,13 +124,31 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
       async *entries() {
         for (const [childName, value] of Object.entries(contents)) {
           const childPath = path === '' ? childName : path + '/' + childName
-          yield [
-            childName,
-            typeof value === 'string'
+          const handle = isBinary(value)
+            ? makeBinaryHandle(childName, value)
+            : typeof value === 'string'
               ? makeFileHandle(childName, childPath, value)
-              : makeDirectoryHandle(childName, childPath, value),
-          ]
+              : makeDirectoryHandle(childName, childPath, value)
+          yield [childName, handle]
         }
+      },
+      async getDirectoryHandle(childName: string) {
+        const value = contents[childName]
+        if (value === undefined || typeof value === 'string' || isBinary(value)) {
+          throw new DOMException('Not a directory', 'NotFoundError')
+        }
+        const childPath = path === '' ? childName : path + '/' + childName
+        return makeDirectoryHandle(childName, childPath, value)
+      },
+      async getFileHandle(childName: string) {
+        const value = contents[childName]
+        if (value === undefined || typeof value === 'object' && !isBinary(value)) {
+          throw new DOMException('Not a file', 'NotFoundError')
+        }
+        const childPath = path === '' ? childName : path + '/' + childName
+        return isBinary(value)
+          ? makeBinaryHandle(childName, value)
+          : makeFileHandle(childName, childPath, value as string)
       },
       async queryPermission() {
         return 'granted' as const

@@ -18,7 +18,7 @@ What we defend against:
 | Script embedded in a document (`<script>`, `onclick`, …) | Embedded HTML is never inserted into the DOM. It is displayed as highlighted text. |
 | `javascript:` / `data:` links | `isSafeHref` parses the target with `URL` and allows only https, http and mailto. Anything else is inert text. |
 | Exfiltration of note content | `connect-src 'none'`, plus a build-time check that no remote origin appears in the output. |
-| Tracking via remote images | Remote image URLs are not loaded. Only images from the user's folder are rendered, through `blob:` URLs. |
+| Tracking via remote images | A remote image is never fetched; it stays as Markdown source. Only files inside the opened folder are rendered, through `blob:` URLs, and only after their type is checked. |
 | Accidental data loss | Conflict detection before every write; changes are never discarded silently. |
 | Supply-chain drift | Exact pinned versions, committed lockfile, `npm audit` in CI. |
 
@@ -123,6 +123,22 @@ load-bearing, and each has tests that fail if they are broken:
 Writes happen 500 ms after the last keystroke, and immediately on Ctrl+S, on window
 blur, when the tab is hidden, and before switching documents. `beforeunload` warns
 while anything is unsaved.
+
+## The hostile document
+
+An end-to-end suite opens a document containing a script tag, an `onerror`
+image, an iframe, inline event handlers, an `onload` SVG, `javascript:` and
+`data:` links, a remote image, a style tag, a raw anchor with a `javascript:`
+target, and a Mermaid diagram carrying markup in its labels. It then walks the
+cursor through every line, so each one is rendered and decorated, and asserts:
+
+- no dialog appeared and no global was set — nothing executed;
+- the content element contains no script, iframe, style, `javascript:` anchor or
+  `on*` attribute — none of it became an element;
+- no request went to any origin but the app’s own;
+- the file on disk was not written, because opening and reading a document is
+  not an edit;
+- all of it is still there as text the user can edit.
 
 ## No telemetry
 

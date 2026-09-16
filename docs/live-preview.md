@@ -76,7 +76,7 @@ ones, no hidden range contains a `\n`.
 | Horizontal rule | Line styled with a border, dashes kept |
 | Fenced code | Lines styled as a code block, with the language highlighted. The fence lines stay visible: hiding a whole line is a vertical layout change |
 | Mermaid | Replaced by the rendered diagram. Click it, or arrow into it, to see the source |
-| Image | Left as source until M9 renders local images. Never a click target: following an image URL would tell that server which note is open |
+| Image | Rendered when the file is in the workspace, through a `blob:` URL. A remote or `data:` source stays as Markdown, and a path that climbs out of the folder is not resolved at all |
 | Task list | `[ ]` becomes a real checkbox; clicking it changes one character in the document |
 
 ## Cursor motion
@@ -166,3 +166,24 @@ docs/security.md.
 
 The diagram theme follows the system colour scheme when the first diagram renders.
 Switching the system theme afterwards needs a reload.
+
+## Images
+
+An image renders only when it comes from the folder the user opened. The file is
+read through the directory handle they granted and handed to the browser as a
+`blob:` URL, which is the only image source the CSP allows.
+
+Three cases are refused, each for its own reason:
+
+- **A remote source** (`https://…`) is never fetched. Loading it would tell that
+  server which note is open and when. It stays as Markdown source, so the reader
+  can see the URL and decide for themselves — reporting it as "not found" would
+  be a lie, since nothing was looked for.
+- **A path that climbs out of the folder** (`../secret.png`) is not resolved. The
+  user granted access to one directory and the editor stays inside it.
+- **A file that is not an image** is not turned into a `blob:` URL at all; the
+  type is checked before anything reaches the browser. SVG is allowed because an
+  SVG loaded through `<img>` is inert: it cannot run script or reach the page.
+
+Object URLs are cached by path, capped, and released when another folder is
+opened.

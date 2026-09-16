@@ -4,6 +4,8 @@ import { Decoration, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 
 import { replacedBlockRanges } from './blockPreview'
+import { isWorkspacePath } from '~/services/imageService'
+import { imageResolver, ImageWidget } from './images'
 import { isRevealed, revealedSpans, type Span } from './reveal'
 import { isTaskChecked } from './task'
 import { BulletWidget, CheckboxWidget } from './widgets'
@@ -138,6 +140,8 @@ class DecorationBuilder {
         return this.task(node, spans)
       case 'Link':
         return this.link(node, spans)
+      case 'Image':
+        return this.image(node, spans)
       case 'Autolink':
         return this.autolink(node, spans)
       case 'URL':
@@ -405,6 +409,43 @@ class DecorationBuilder {
     for (const marker of node.node.getChildren('LinkMark')) {
       this.hide(marker.from, marker.to)
     }
+  }
+
+  /**
+   * `![alt](picture.png)` — rendered when the file is in the workspace.
+   *
+   * A remote source is left as Markdown source. Loading it would tell that
+   * server which note is open, and the CSP would refuse it anyway.
+   */
+  private image(node: SyntaxNodeRef, spans: readonly Span[]): void {
+    const resolve = this.state.facet(imageResolver)
+    const url = node.node.getChild('URL')
+    if (resolve === null || url === null) return
+
+    if (isRevealed(spans, node.from, node.to)) return
+    // A replacement may not cover a line break, so an image whose source wraps
+    // stays as text.
+    if (this.state.doc.lineAt(node.from).to < node.to) return
+
+    const source = this.state.doc.sliceString(url.from, url.to)
+    // A source we will not load stays as Markdown, so the reader can see the URL
+    // and decide for themselves. Replacing it with "not found" would be a lie:
+    // nothing was looked for.
+    if (!isWorkspacePath(source)) return
+
+    const marks = node.node.getChildren('LinkMark')
+    const opening = marks.at(0)
+    const closing = marks.at(1)
+    const alt =
+      opening === undefined || closing === undefined
+        ? ''
+        : this.state.doc.sliceString(opening.to, closing.from)
+
+    this.replaceWithWidget(
+      Decoration.replace({ widget: new ImageWidget(source, alt, resolve) }),
+      node.from,
+      node.to,
+    )
   }
 
   /** A bare URL: an autolink when it stands alone, styled either way. */

@@ -82,6 +82,24 @@
   color: var(--color-text-muted);
 }
 
+/* Images from the workspace. A remote one is never loaded; it stays as text. */
+.cm-editor .cm-md-image {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.cm-editor .cm-md-image__img {
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 3px;
+}
+
+.cm-editor .cm-md-image__missing {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-text-muted);
+}
 /* Mermaid diagrams */
 
 .cm-editor .cm-md-diagram {

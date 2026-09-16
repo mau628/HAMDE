@@ -1,4 +1,5 @@
 import { fileSystemService } from '~/services/fileSystemService'
+import { releaseImages } from '~/services/imageService'
 import type { DirectoryNode, FileNode, FileTreeNode } from '~/types/fileSystem'
 
 export type WorkspaceError =
@@ -65,6 +66,8 @@ export function useWorkspace() {
       const directory = await fileSystemService.pickDirectory()
       if (directory === null) return // user cancelled
 
+      // Object URLs belong to the folder that was open; the new one starts clean.
+      releaseImages()
       withRawHandle(directory)
 
       await loadChildren(directory)

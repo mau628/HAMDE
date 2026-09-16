@@ -3,6 +3,7 @@ import { Annotation, EditorState } from '@codemirror/state'
 import { EditorView, type ViewUpdate } from '@codemirror/view'
 
 import { createEditorExtensions } from '~/editor/editorConfig'
+import { loadWorkspaceImage } from '~/services/imageService'
 
 const props = defineProps<{
   /** The document's Markdown source. */
@@ -24,8 +25,19 @@ const emit = defineEmits<{
  */
 const ProgrammaticChange = Annotation.define<boolean>()
 
+const { root } = useWorkspace()
+const { activeDocument } = useDocument()
+
 const host = ref<HTMLElement>()
 let view: EditorView | undefined
+
+/**
+ * Images resolve against the open folder and the document that references them.
+ * Read at call time, so the editor does not need rebuilding when either changes.
+ */
+function resolveImage(source: string) {
+  return loadWorkspaceImage(root.value, activeDocument.value?.file.path ?? '', source)
+}
 
 function isProgrammatic(update: ViewUpdate): boolean {
   return update.transactions.some((transaction) => transaction.annotation(ProgrammaticChange))
@@ -36,7 +48,7 @@ onMounted(() => {
     state: EditorState.create({
       doc: props.doc,
       extensions: [
-        ...createEditorExtensions(),
+        ...createEditorExtensions({ resolveImage }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isProgrammatic(update)) {
             emit('change', update.state.doc.toString())

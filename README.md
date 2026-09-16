@@ -1,21 +1,70 @@
 # YAMDE
 
-A local-first Markdown editor with Obsidian-style live preview. It runs entirely in
-the browser: no backend, no accounts, no network access after the page loads.
+A Markdown editor that runs entirely in your browser and edits the files in a folder
+on your own disk. No backend, no account, no upload — the app makes no network
+request at all once the page has loaded.
+
+Markdown renders as you write it, in place. The line your cursor is on shows its
+syntax; everything else reads as the finished document.
+
+```
+┌──────────────────┬──────────────────────────────────────────┐
+│ YAMDE            │  My document                             │
+│ [ Open Folder ]  │                                          │
+│                  │  Some text with bold and a link.         │
+│ NOTES        ⟳   │                                          │
+│  ▾ Projects      │  > A quotation.                          │
+│      api.md      │                                          │
+│      todo.md     │  ☑ a finished task                       │
+│  ▸ Personal      │  ☐ this line **shows** its syntax        │
+│    README.md     │                                          │
+│                  │        ┌───┐      ┌───┐                  │
+│                  │        │ A │ ───▶ │ B │                  │
+│                  │        └───┘      └───┘                  │
+│ Files never      │                                          │
+│ leave your       │                   note.md · Saved        │
+│ device.          │                                          │
+└──────────────────┴──────────────────────────────────────────┘
+```
 
 ## Requirements
 
-- A Chromium-based browser. The editor is built on the
-  [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker),
-  which Firefox and Safari do not implement. This is a deliberate scope decision.
-- Node.js >= 24.11.0 for development.
+A Chromium-based browser. The editor is built on the
+[File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker),
+which Firefox and Safari do not implement. This is a deliberate scope decision, not
+an oversight: that API is what makes editing your own files possible without a
+server in the middle.
 
-## How it works
+Node.js 24.11 or newer for development.
 
-You pick a local folder. The app keeps file handles, reads a document only when you
-open it, and writes changes straight back to disk. Notes are never uploaded anywhere
-— `connect-src 'none'` in the Content Security Policy makes that a technical
-guarantee rather than a promise.
+## What it does
+
+- **Open a folder** and browse it. Directories are read one level at a time, so a
+  folder with thousands of notes opens immediately.
+- **Edit Markdown with live preview.** Headings, bold, italic, strikethrough, inline
+  code, blockquotes, lists, links and images render in place. The document on disk is
+  never transformed: it stays exactly the Markdown you wrote.
+- **Task lists you can click.** A checkbox changes one character of the file.
+- **GitHub Flavored Markdown**: tables, task lists, strikethrough and autolinks.
+  Tables stay as editable source, aligned in a monospace font.
+- **Fenced code, highlighted** in JavaScript, TypeScript, JSON, HTML, CSS, SQL, XML,
+  YAML, bash, PowerShell and C#. Each grammar is downloaded only if a document uses
+  it.
+- **Mermaid diagrams**, rendered in place. Click one, or arrow into it, to edit its
+  source. Mermaid itself is only downloaded when a diagram is actually drawn.
+- **Autosave**, 500 ms after you stop typing, and immediately on Ctrl+S, when the
+  window loses focus, when the tab is hidden, and before switching documents.
+- **External changes are never overwritten.** If another program writes the file
+  while you have it open, the app stops and asks whether to reload it or keep your
+  version.
+
+## What it deliberately does not do
+
+- Load anything over the network, including remote images. A remote image is shown
+  as Markdown source; fetching it would tell that server which note you are reading.
+- Render HTML embedded in a document. It is displayed as text.
+- Follow a link whose protocol is not http, https or mailto.
+- Rewrite parts of a file you did not edit — including its line endings.
 
 ## Commands
 
@@ -32,14 +81,20 @@ guarantee rather than a promise.
 
 ## Documentation
 
-- [docs/live-preview.md](docs/live-preview.md) — how the rendering works and what it deliberately does not render
-- [docs/security.md](docs/security.md) — threat model and every security decision
-- [docs/dependencies.md](docs/dependencies.md) — why each dependency exists, and what was rejected
+- [docs/live-preview.md](docs/live-preview.md) — how the rendering works, and what it
+  deliberately does not render
+- [docs/security.md](docs/security.md) — the threat model and every security decision,
+  including the ones that are compromises
+- [docs/dependencies.md](docs/dependencies.md) — why each dependency exists, what was
+  rejected, and what the build actually weighs
 
 ## Status
 
-M8 complete: Mermaid diagrams render in place of their source, and show it again
-when the cursor enters the block. Mermaid itself is only downloaded when a
-diagram is actually drawn.
+The MVP is complete: open a folder, edit Markdown with live preview, save
+automatically, resolve external changes, and render code and diagrams — all of it
+without a byte leaving the machine.
 
-Next: hardening — local images, the XSS suite and performance budgets.
+Not yet done: deployment to GitHub Pages, which is configuration rather than code.
+
+Possible next steps, none of which the editor needs rewriting for: rendered tables,
+wikilinks, remembering the last folder across sessions, and search.

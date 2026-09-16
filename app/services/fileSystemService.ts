@@ -125,6 +125,23 @@ export function createFileSystemService(): FileSystemService {
       return { ok: true, stamp: stampOf(await file.handle.getFile()) }
     },
 
+    async readFileAtPath(directory: DirectoryNode, path: string) {
+      const segments = path.split('/').filter((segment) => segment !== '')
+      const name = segments.pop()
+      if (name === undefined) return null
+
+      try {
+        let current = directory.handle
+        for (const segment of segments) current = await current.getDirectoryHandle(segment)
+
+        return await (await current.getFileHandle(name)).getFile()
+      } catch {
+        // Missing file, missing folder, or permission withdrawn: all the same to
+        // the caller, which simply does not render anything.
+        return null
+      }
+    },
+
     async ensureWritePermission(node: FileTreeNode) {
       const descriptor: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' }
 
