@@ -4,7 +4,9 @@ import type { SyntaxNode } from '@lezer/common'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 
 import { openExternal } from '~/services/links'
+import { blockPreview } from './blockPreview'
 import { buildPreviewDecorations } from './decorations'
+import { mermaidRenderer } from './mermaid'
 
 /**
  * Obsidian-style live preview.
@@ -12,7 +14,7 @@ import { buildPreviewDecorations } from './decorations'
  * Markdown renders in place, and the line the cursor is on shows its syntax. The
  * document always holds the original Markdown: this is presentation only.
  *
- * ## Why this is a view plugin
+ * ## Two layers, for one reason
  *
  * Decorations can be provided either directly or through a plugin. CodeMirror's
  * documentation is explicit about the difference:
@@ -22,13 +24,20 @@ import { buildPreviewDecorations } from './decorations'
  * > new viewport has been computed, and thus must not introduce block widgets or
  * > replacing decorations that cover line breaks.
  *
- * A plugin only sees the viewport, which is exactly what inline decorations want: a
- * 50,000-line document costs the same as a short one. The price is that nothing here
- * may replace a line break — hence the rendered Mermaid diagram (M8), which replaces
- * a whole block, has to come from a state field instead.
+ * So there are two:
+ *
+ * - **Inline** (this file): a plugin, and therefore viewport-limited, which is what
+ *   inline decorations want — a 50,000-line document costs the same as a short one.
+ *   Nothing here may replace a line break.
+ * - **Block** (`blockPreview.ts`): a state field, provided directly, for structures
+ *   replaced as a whole. A rendered Mermaid diagram is one; a rendered table would
+ *   be another.
+ *
+ * The inline layer skips whatever the block layer has replaced, so the two never
+ * decorate the same text.
  */
 export function livePreview(): Extension {
-  return [previewPlugin, atomicHiddenRanges, linkClicks]
+  return [blockPreview([mermaidRenderer]), previewPlugin, atomicHiddenRanges, linkClicks]
 }
 
 class LivePreview {

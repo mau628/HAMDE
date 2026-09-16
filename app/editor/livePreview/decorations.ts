@@ -3,6 +3,7 @@ import type { EditorState, Range } from '@codemirror/state'
 import { Decoration, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 
+import { replacedBlockRanges } from './blockPreview'
 import { isRevealed, revealedSpans, type Span } from './reveal'
 import { isTaskChecked } from './task'
 import { BulletWidget, CheckboxWidget } from './widgets'
@@ -79,7 +80,7 @@ export function buildPreviewDecorations(
   state: EditorState,
   ranges: readonly Span[],
 ): PreviewDecorations {
-  const builder = new DecorationBuilder(state)
+  const builder = new DecorationBuilder(state, replacedBlockRanges(state))
   const spans = revealedSpans(state)
 
   for (const range of ranges) {
@@ -99,9 +100,17 @@ class DecorationBuilder {
   /** A node can be reached from two viewport ranges; decorate it once. */
   private readonly seen = new Set<string>()
 
-  constructor(private readonly state: EditorState) {}
+  constructor(
+    private readonly state: EditorState,
+    /** Ranges a block widget has replaced; nothing inside them is decorated. */
+    private readonly replaced: readonly Span[] = [],
+  ) {}
 
   visit(node: SyntaxNodeRef, spans: readonly Span[], range: Span): void {
+    // A rendered diagram stands in for its lines; decorating inside it would
+    // leave orphan styling and overlapping atomic ranges.
+    if (this.isReplaced(node.from, node.to)) return
+
     const name = node.name
 
     if (name.startsWith('ATXHeading')) return this.atxHeading(node, spans)
@@ -190,6 +199,10 @@ class DecorationBuilder {
   private line(decoration: Decoration, position: number): void {
     if (!this.claim('line' + decoration.spec.class, position, position)) return
     this.all.push(decoration.range(position))
+  }
+
+  private isReplaced(from: number, to: number): boolean {
+    return this.replaced.some((block) => from >= block.from && to <= block.to)
   }
 
   private claim(kind: string, from: number, to: number): boolean {

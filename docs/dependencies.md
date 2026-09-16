@@ -21,7 +21,7 @@ committed; `npm audit` runs in CI.
 | `@codemirror/lang-markdown` | Markdown parsing plus the list-continuation keymap. |
 | `@lezer/markdown` | **Required explicitly.** `markdown()` defaults to `commonmarkLanguage`, which has no GFM. `markdownLanguage` (or `GFM` from this package) provides tables, task lists, strikethrough and autolinks. |
 | `@codemirror/commands` | History and default keybindings. |
-| `mermaid` | Diagram rendering. Bundled locally, never from a CDN. |
+| `mermaid` | Diagram rendering. Bundled locally, never from a CDN, and imported dynamically: ~1.5 MB that a document without a diagram never downloads. |
 | `@codemirror/lang-javascript`, `-json`, `-html`, `-css`, `-sql`, `-xml`, `-yaml` | Grammars for fenced code blocks, each imported dynamically so it costs nothing until a document uses it. |
 | `@codemirror/legacy-modes` | bash (`shell`), PowerShell and C# (`clike`), for which no Lezer grammar exists. Wrapped in `StreamLanguage`. |
 
@@ -71,8 +71,14 @@ Measured on the generated build, as the browser actually downloads it:
 Seven files rather than eleven because JavaScript and TypeScript share a grammar,
 and HTML and CSS are already in the initial bundle whatever we do (see above).
 
-Mermaid must stay out of the initial number too: it is loaded on demand, only for
-documents that actually contain a diagram.
+Mermaid stays out of that initial number: it is loaded only when a diagram is
+actually drawn.
+
+| Load | Transferred |
+| --- | --- |
+| A document with no diagram | nothing further |
+| A document whose diagram is open as source | nothing further |
+| A document with a rendered diagram | +1.5 MB in 12 files |
 
 ## Notes on upstream
 

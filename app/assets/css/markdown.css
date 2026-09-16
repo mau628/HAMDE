@@ -82,6 +82,55 @@
   color: var(--color-text-muted);
 }
 
+/* Mermaid diagrams */
+
+.cm-editor .cm-md-diagram {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+  overflow-x: auto;
+}
+
+.cm-editor .cm-md-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* While Mermaid loads, the source is the placeholder: it is what is there. */
+.cm-editor .cm-md-diagram__pending {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+}
+
+.cm-editor .cm-md-diagram--failed {
+  justify-content: flex-start;
+}
+
+.cm-editor .cm-md-diagram__error {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--color-warning-bg);
+  border-left: 3px solid var(--color-warning);
+  border-radius: 3px;
+}
+
+.cm-editor .cm-md-diagram__message {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+.cm-editor .cm-md-diagram__error pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+}
 /* A real checkbox, sized to sit on the text baseline. */
 .cm-editor .cm-md-task-checkbox {
   width: 0.95em;

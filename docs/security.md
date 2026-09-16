@@ -132,8 +132,23 @@ icons. Nuxt DevTools is disabled because it makes its own network requests. Font
 
 ## Mermaid
 
-Mermaid is initialised with `startOnLoad: false` and `securityLevel: 'strict'`, which
-encodes HTML in diagram labels and disables click handlers. The SVG that
-`mermaid.render()` returns is the single place in the codebase where generated markup is
-inserted via `innerHTML`; it is isolated in one widget so it can be audited. Mermaid is
-bundled, never loaded from a CDN, and diagram source is never sent anywhere.
+Mermaid is initialised with `startOnLoad: false` and `securityLevel: 'strict'`,
+which encodes HTML in diagram labels and disables click directives. Labels are
+rendered as SVG text rather than embedded HTML (`htmlLabels: false`), so diagram
+content has one less way to become markup.
+
+The rendered SVG is the only generated markup the app inserts, and it is **not**
+inserted with `innerHTML`. It is parsed with `DOMParser` as `image/svg+xml`,
+which executes nothing, and then scrubbed: script elements are removed, every
+attribute whose name starts with `on` is dropped, and any `href` that is not
+http, https, mailto or a fragment is dropped. That is defence in depth — strict
+mode should already have neutralised all of it — and it means no string in this
+codebase is ever interpreted as HTML.
+
+An end-to-end test feeds a diagram containing `<img onerror>`, `<script>` and a
+`click … "javascript:"` directive, and asserts that the rendered result contains
+no script element, no event-handler attribute and no javascript: target, and
+that no dialog appeared.
+
+Mermaid is bundled, never loaded from a CDN, and diagram source is never sent
+anywhere.

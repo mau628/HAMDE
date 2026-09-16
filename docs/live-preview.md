@@ -54,8 +54,8 @@ The price is that **no replacement here may cover a newline**. Two consequences:
 
 - A setext heading (`Title` over `=====`) keeps its underline visible. Hiding it would
   mean removing a line, which is a vertical layout change.
-- The rendered Mermaid diagram (M8) replaces a whole block, so it has to come from a
-  state field provided directly, not from this plugin.
+- A rendered Mermaid diagram replaces a whole block, so it comes from a state field
+  provided directly (`blockPreview.ts`) rather than from the plugin.
 
 A unit test asserts the invariant directly: for a set of documents including malformed
 ones, no hidden range contains a `\n`.
@@ -75,6 +75,7 @@ ones, no hidden range contains a `\n`.
 | Table | Styled as monospace source, never replaced — it stays editable |
 | Horizontal rule | Line styled with a border, dashes kept |
 | Fenced code | Lines styled as a code block, with the language highlighted. The fence lines stay visible: hiding a whole line is a vertical layout change |
+| Mermaid | Replaced by the rendered diagram. Click it, or arrow into it, to see the source |
 | Image | Left as source until M9 renders local images. Never a click target: following an image URL would tell that server which note is open |
 | Task list | `[ ]` becomes a real checkbox; clicking it changes one character in the document |
 
@@ -117,3 +118,51 @@ from under them.
 - **A fence still being typed does not style the line below it.** An unterminated
   `FencedCode` node ends at the start of the following line, which is not part of
   the block.
+
+## The block layer
+
+A second layer exists for structures replaced as a whole. It is a state field,
+provided directly, because that is the only way to introduce a block widget.
+
+What that costs and how it is paid:
+
+- **It cannot see the viewport**, so the scan walks the document. It only descends
+  into nodes that can contain a block, and only re-runs when the document or the
+  parse tree changes — a cursor move rebuilds the decorations from the blocks
+  already found, with no tree walk.
+- **The parse tree can be incomplete** in a state field. The parser reports its
+  progress to the view as a transaction, so comparing the trees inside `update` is
+  what catches a diagram in a part of a large document the parser had not reached.
+
+Two decisions that came out of trying the obvious thing first:
+
+- **Replaced blocks are not atomic.** Atomic ranges are right for hidden inline
+  syntax, where the caret should not stall on invisible characters. For a block
+  they are wrong: making the diagram atomic made it unreachable — arrow keys
+  jumped over it and a click landed outside it, so the source could never be
+  opened.
+- **Entering a block is handled explicitly.** Clicking the widget dispatches a
+  cursor into the block, and ArrowUp/ArrowDown are bound above the default keymap
+  so a vertical move that would jump a whole block lands inside it instead.
+  Neither works by default for a block that occupies no lines in the layout.
+
+## Mermaid
+
+Mermaid is the largest dependency in the project — around 1.5 MB, a third of that
+after compression — so it is imported dynamically and only when a diagram is
+actually drawn. A document with no diagram downloads none of it, and neither does
+a document whose diagram is open as source.
+
+Rendered diagrams are cached by their source, so moving the cursor around a
+document never re-renders one. An invalid diagram shows the parse error with the
+source underneath, and becomes a drawing again as soon as it parses.
+
+The SVG is the only generated markup this app puts in the DOM, and it does not go
+in through `innerHTML`: it is parsed with `DOMParser` and scrubbed of script
+elements, event-handler attributes and unsafe link targets first. See
+docs/security.md.
+
+### Known limitation
+
+The diagram theme follows the system colour scheme when the first diagram renders.
+Switching the system theme afterwards needs a reload.

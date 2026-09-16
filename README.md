@@ -38,8 +38,8 @@ guarantee rather than a promise.
 
 ## Status
 
-M7 complete: fenced code blocks are highlighted in eleven languages — JavaScript,
-TypeScript, JSON, HTML, CSS, SQL, XML, YAML, bash, PowerShell and C# — each
-grammar downloaded only when a document actually uses it.
+M8 complete: Mermaid diagrams render in place of their source, and show it again
+when the cursor enters the block. Mermaid itself is only downloaded when a
+diagram is actually drawn.
 
-Next: Mermaid diagrams, then hardening and local images.
+Next: hardening — local images, the XSS suite and performance budgets.

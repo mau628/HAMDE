@@ -17,6 +17,23 @@ export const ALLOWED_INERT_URLS = [
   'https://nuxt.com/docs/',
   'https://vuejs.org/error-reference',
 
+  // Documentation and issue-tracker links inside error messages thrown by
+  // Mermaid and its dependencies. They are string literals in `throw new
+  // Error(...)` — printed for a developer, never requested. Each one was read
+  // in the bundle before being listed here.
+  'https://github.com/mermaid-js/mermaid',
+  'https://github.com/chevrotain/chevrotain',
+  'https://github.com/markedjs/marked',
+  'https://chevrotain.io/docs/',
+  'https://langium.org/docs/',
+  'https://en.wikipedia.org/wiki/LL_parser',
+  'https://rolldown.rs/in-depth/',
+
+  // XML namespace identifiers in the ELK layout engine. Never dereferenced,
+  // the same way the SVG namespace is not.
+  'http://www.eclipse.org/elk/',
+  'http://www.eclipse.org/emf/',
+
   // Appears inside Markdown *content* (the placeholder document, and test
   // fixtures later), never as a resource the app loads. example.com is reserved
   // for documentation by RFC 2606 and resolves to nothing meaningful.
