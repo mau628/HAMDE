@@ -38,7 +38,8 @@ guarantee rather than a promise.
 
 ## Status
 
-M6 complete: task lists are interactive. Clicking a checkbox toggles the task and
-changes exactly one character of the file.
+M7 complete: fenced code blocks are highlighted in eleven languages — JavaScript,
+TypeScript, JSON, HTML, CSS, SQL, XML, YAML, bash, PowerShell and C# — each
+grammar downloaded only when a document actually uses it.
 
-Next: syntax highlighting inside fenced code blocks, then Mermaid diagrams.
+Next: Mermaid diagrams, then hardening and local images.

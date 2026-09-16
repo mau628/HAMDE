@@ -74,7 +74,7 @@ ones, no hidden range contains a `\n`.
 | Reference link | Left intact: the label matters to the reader |
 | Table | Styled as monospace source, never replaced — it stays editable |
 | Horizontal rule | Line styled with a border, dashes kept |
-| Fenced code | Lines styled as a code block; highlighting arrives in M7 |
+| Fenced code | Lines styled as a code block, with the language highlighted. The fence lines stay visible: hiding a whole line is a vertical layout change |
 | Image | Left as source until M9 renders local images. Never a click target: following an image URL would tell that server which note is open |
 | Task list | `[ ]` becomes a real checkbox; clicking it changes one character in the document |
 

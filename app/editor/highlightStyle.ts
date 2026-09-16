@@ -19,6 +19,8 @@ export const markdownHighlightStyle = HighlightStyle.define([
   // become visible on the cursor's line. Muted, so revealing a line is not loud.
   { tag: tags.processingInstruction, color: 'var(--color-syntax-mark)' },
   { tag: tags.contentSeparator, color: 'var(--color-syntax-mark)' },
+  // The language name on a fence (`CodeInfo`) is syntax too, not content.
+  { tag: tags.labelName, color: 'var(--color-text-muted)' },
 
   // Code tokens, used once fenced blocks get their own parsers (M7).
   { tag: tags.keyword, color: 'var(--color-syntax-keyword)' },

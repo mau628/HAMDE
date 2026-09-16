@@ -22,7 +22,8 @@ committed; `npm audit` runs in CI.
 | `@lezer/markdown` | **Required explicitly.** `markdown()` defaults to `commonmarkLanguage`, which has no GFM. `markdownLanguage` (or `GFM` from this package) provides tables, task lists, strikethrough and autolinks. |
 | `@codemirror/commands` | History and default keybindings. |
 | `mermaid` | Diagram rendering. Bundled locally, never from a CDN. |
-| `@codemirror/lang-*`, `@codemirror/legacy-modes` | Syntax highlighting inside fenced code blocks, loaded on demand. `legacy-modes` covers bash (`shell`), `powershell` and C# (`clike`), for which no Lezer package exists. |
+| `@codemirror/lang-javascript`, `-json`, `-html`, `-css`, `-sql`, `-xml`, `-yaml` | Grammars for fenced code blocks, each imported dynamically so it costs nothing until a document uses it. |
+| `@codemirror/legacy-modes` | bash (`shell`), PowerShell and C# (`clike`), for which no Lezer grammar exists. Wrapped in `StreamLanguage`. |
 
 ## Rejected, and why
 
@@ -58,16 +59,21 @@ Two consequences:
 
 ## Bundle baseline
 
-Measured after M1 (`npm run generate`, gzip):
+Measured on the generated build, as the browser actually downloads it:
 
-| Chunk | Size |
+| Load | Transferred |
 | --- | --- |
-| Main entry (Vue + Nuxt + CodeMirror + Markdown/HTML/JS/CSS grammars) | ~186 kB |
-| Secondary chunk | ~31 kB |
-| CSS | ~1 kB |
+| Initial page, any document | 653 kB in 3 files (~196 kB gzip) |
+| A document with no code | nothing further |
+| A document with one SQL block | +15 kB in 1 file |
+| A document using all eleven languages | +74 kB in 7 files |
 
-Mermaid (M8) must stay out of this number: it is loaded on demand, only for documents
-that actually contain a diagram.
+Seven files rather than eleven because JavaScript and TypeScript share a grammar,
+and HTML and CSS are already in the initial bundle whatever we do (see above).
+
+Mermaid must stay out of the initial number too: it is loaded on demand, only for
+documents that actually contain a diagram.
+
 ## Notes on upstream
 
 - **The CodeMirror GitHub repositories are archived** (`codemirror/view`,
