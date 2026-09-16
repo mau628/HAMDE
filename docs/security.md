@@ -98,7 +98,7 @@ Two properties of the write path matter for data safety:
 ## Autosave and data loss
 
 Autosave is an explicit state machine in `app/services/autoSave.ts`, kept free of
-Vue so it can be tested with fake timers rather than through the UI. Three rules are
+Vue so it can be tested with fake timers rather than through the UI. Four rules are
 load-bearing, and each has tests that fail if they are broken:
 
 1. **Pending text is never dropped** — not on a failed write, not on a conflict, and
@@ -115,6 +115,10 @@ load-bearing, and each has tests that fail if they are broken:
    contents is annotated, and the change listener ignores it. Without that, opening
    a file looked like typing and autosave wrote it straight back, changing the
    timestamp of a file the user never edited.
+4. **A file keeps its own line endings.** CodeMirror normalises a document to LF
+   when it loads it, so writing the editor text straight back rewrote every line
+   of a CRLF file the moment the user typed one character. The document remembers
+   what the file used, and the write path restores it.
 
 Writes happen 500 ms after the last keystroke, and immediately on Ctrl+S, on window
 blur, when the tab is hidden, and before switching documents. `beforeunload` warns

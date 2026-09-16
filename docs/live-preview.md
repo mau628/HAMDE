@@ -76,7 +76,7 @@ ones, no hidden range contains a `\n`.
 | Horizontal rule | Line styled with a border, dashes kept |
 | Fenced code | Lines styled as a code block; highlighting arrives in M7 |
 | Image | Left as source until M9 renders local images. Never a click target: following an image URL would tell that server which note is open |
-| Task list | `[ ]` left as text until M6 makes it a checkbox |
+| Task list | `[ ]` becomes a real checkbox; clicking it changes one character in the document |
 
 ## Cursor motion
 
@@ -91,8 +91,17 @@ and on disk. Clicking a rendered bullet or heading moves the cursor there, which
 reveals the source — the widget's `ignoreEvent` returns `false` so a click behaves
 like a click anywhere else.
 
-The only place a widget will ever change the document is the task checkbox in M6, and
-it changes exactly one character.
+The one exception is the task checkbox, and it is deliberately the smallest change
+the editor can make: a single character between the brackets. The indentation, the
+list marker the user chose and the text are left untouched, which
+`tests/unit/task.spec.ts` asserts by comparing whole documents.
+
+The checkbox is a real `<input type="checkbox">`, so it is focusable and responds
+to Space. CodeMirror renders widgets with `contenteditable="false"` and ignores
+events inside them by default, so the browser's own checkbox behaviour works
+untouched. Clicking it does not move the cursor, which matters: if it did, the
+line would reveal its source and the box the user just clicked would disappear
+from under them.
 
 ## Rendering decisions that look like bugs
 

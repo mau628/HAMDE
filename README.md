@@ -38,8 +38,7 @@ guarantee rather than a promise.
 
 ## Status
 
-M5 complete: the live preview. Markdown renders in place and the line the cursor
-is on shows its syntax; the document itself is never transformed. Links open on
-Ctrl/Cmd+click, and only after their protocol is checked.
+M6 complete: task lists are interactive. Clicking a checkbox toggles the task and
+changes exactly one character of the file.
 
-Next: interactive task checkboxes (M6), fenced code highlighting (M7), Mermaid (M8).
+Next: syntax highlighting inside fenced code blocks, then Mermaid diagrams.

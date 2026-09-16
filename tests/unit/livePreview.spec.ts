@@ -234,8 +234,10 @@ describe('lists', () => {
     expect(rendered('- one\n  - nested\n', 100)).toBe('• one\n  • nested\n')
   })
 
-  it('leaves task markers alone until checkboxes exist', () => {
-    expect(rendered('- [ ] todo\n', 100)).toBe('• [ ] todo\n')
+  it('replaces a task marker with a checkbox', () => {
+    // Both the bullet and the checkbox are widgets, which `rendered` marks the same
+    // way; what matters here is that the raw `[ ]` is gone.
+    expect(rendered('- [ ] todo\n', 100)).toBe('• • todo\n')
   })
 })
 

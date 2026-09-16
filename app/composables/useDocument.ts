@@ -1,5 +1,6 @@
 import { createAutoSave, type AutoSaveController, type SaveState } from '~/services/autoSave'
 import { fileSystemService } from '~/services/fileSystemService'
+import { detectLineEnding, fromLf, toLf } from '~/services/lineEndings'
 import type { FileNode, OpenDocument } from '~/types/fileSystem'
 
 /**
@@ -19,8 +20,17 @@ export function useDocument() {
   function getController(): AutoSaveController {
     if (controller === null) {
       const state = saveState
+      const open = activeDocument
       controller = createAutoSave({
-        write: (file, text, expected) => fileSystemService.writeFile(file, text, expected),
+        // The editor works in LF; the file gets back the endings it came with.
+        // Reading the ending here rather than capturing it at attach time is safe:
+        // a document is always closed before another one is opened.
+        write: (file, text, expected) =>
+          fileSystemService.writeFile(
+            file,
+            fromLf(text, open.value?.lineEnding ?? '\n'),
+            expected,
+          ),
         ensurePermission: (file) => fileSystemService.ensureWritePermission(file),
         onState: (next) => {
           state.value = next
@@ -50,7 +60,12 @@ export function useDocument() {
 
     try {
       const { text, stamp } = await fileSystemService.readFile(file)
-      activeDocument.value = { file, text, stamp }
+      activeDocument.value = {
+        file,
+        text: toLf(text),
+        stamp,
+        lineEnding: detectLineEnding(text),
+      }
       getController().attach(file, stamp)
       return true
     } catch (cause) {
@@ -100,7 +115,13 @@ export function useDocument() {
 
     try {
       const { text, stamp } = await fileSystemService.readFile(open.file)
-      activeDocument.value = { file: open.file, text, stamp }
+      // The other program may have changed the line endings too.
+      activeDocument.value = {
+        file: open.file,
+        text: toLf(text),
+        stamp,
+        lineEnding: detectLineEnding(text),
+      }
       controllerRef.attach(open.file, stamp)
     } catch (cause) {
       openError.value = cause instanceof Error ? cause.message : String(cause)

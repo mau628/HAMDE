@@ -82,6 +82,21 @@
   color: var(--color-text-muted);
 }
 
+/* A real checkbox, sized to sit on the text baseline. */
+.cm-editor .cm-md-task-checkbox {
+  width: 0.95em;
+  height: 0.95em;
+  margin: 0 0.15em 0 0;
+  vertical-align: -0.1em;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+/* A completed task recedes, so a long list reads at a glance. */
+.cm-editor .cm-md-task-done {
+  color: var(--color-text-muted);
+}
+
 /* A quote reads as a quote: indented, with a rule down its left edge. */
 .cm-editor .cm-md-quote {
   padding-left: 12px;

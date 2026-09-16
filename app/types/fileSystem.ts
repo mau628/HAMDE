@@ -1,3 +1,5 @@
+import type { LineEnding } from '~/services/lineEndings'
+
 /**
  * The workspace model the rest of the app works with.
  *
@@ -34,8 +36,11 @@ export type FileTreeNode = FileNode | DirectoryNode
 /** An open document, with the stamp it had when it was read. */
 export interface OpenDocument {
   file: FileNode
+  /** Always with LF endings: the editor works in that form. */
   text: string
   stamp: FileStamp
+  /** What the file on disk uses, so writing it back does not rewrite every line. */
+  lineEnding: LineEnding
 }
 
 export type WriteResult =

@@ -180,6 +180,28 @@ test('does not leave the document while its text cannot be saved', async ({ page
   await expect(page.locator('.cm-content')).toContainText('mine')
 })
 
+test('keeps a file\'s CRLF line endings when saving it', async ({ page }) => {
+  const original = ['# Note', '', 'First line.', 'Second line.', ''].join('\r\n')
+  await installFakePicker(page, { 'crlf.md': original })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Folder' }).click()
+  await page.getByRole('button', { name: 'crlf.md' }).click()
+  await expect(page.locator('.status__path')).toHaveText('crlf.md')
+
+  await page.locator('.cm-content').click()
+  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.type('Added.')
+  await expect(page.locator('.status__state')).toHaveText('Saved')
+
+  const saved = (await writtenFiles(page))['crlf.md']!
+
+  // Typing one word must not rewrite every line in the file. CodeMirror hands the
+  // app LF text, and the write path puts the file's own endings back.
+  expect(saved).toBe(original + 'Added.')
+  expect(saved.match(/\r\n/g)).toHaveLength(4)
+  expect(saved.match(/(?<!\r)\n/g)).toBeNull()
+})
+
 test('saving issues no network request', async ({ page }) => {
   const external: string[] = []
   page.on('request', (request) => {

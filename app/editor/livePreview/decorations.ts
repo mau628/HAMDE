@@ -4,7 +4,8 @@ import { Decoration, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 
 import { isRevealed, revealedSpans, type Span } from './reveal'
-import { BulletWidget } from './widgets'
+import { isTaskChecked } from './task'
+import { BulletWidget, CheckboxWidget } from './widgets'
 
 /**
  * Turns the Markdown syntax tree into decorations.
@@ -33,6 +34,12 @@ const HIDDEN = Decoration.replace({})
 
 const BULLET = Decoration.replace({ widget: new BulletWidget() })
 
+/** Two instances are enough: a checkbox differs only by its state. */
+const CHECKBOX = {
+  checked: Decoration.replace({ widget: new CheckboxWidget(true) }),
+  unchecked: Decoration.replace({ widget: new CheckboxWidget(false) }),
+} as const
+
 const MARK = {
   strong: Decoration.mark({ class: 'cm-md-strong' }),
   emphasis: Decoration.mark({ class: 'cm-md-emphasis' }),
@@ -42,6 +49,7 @@ const MARK = {
   url: Decoration.mark({ class: 'cm-md-url' }),
   listMark: Decoration.mark({ class: 'cm-md-list-mark' }),
   punctuation: Decoration.mark({ class: 'cm-md-punctuation' }),
+  taskDone: Decoration.mark({ class: 'cm-md-task-done' }),
 } as const
 
 const LINE = {
@@ -117,6 +125,8 @@ class DecorationBuilder {
         return this.quoteMark(node, spans)
       case 'ListItem':
         return this.listItem(node, spans)
+      case 'Task':
+        return this.task(node, spans)
       case 'Link':
         return this.link(node, spans)
       case 'Autolink':
@@ -316,6 +326,26 @@ class DecorationBuilder {
     }
 
     this.replaceWithWidget(BULLET, marker.from, marker.to)
+  }
+
+  /**
+   * `- [ ] something` — the marker becomes a checkbox, and a completed task is
+   * dimmed so a long list reads at a glance.
+   *
+   * On the cursor line the raw `[ ]` shows like any other syntax. That costs
+   * nothing: clicking the checkbox does not move the cursor, so the box a user
+   * reaches for is always the rendered one.
+   */
+  private task(node: SyntaxNodeRef, spans: readonly Span[]): void {
+    const marker = node.node.getChild('TaskMarker')
+    if (marker === null) return
+
+    const checked = isTaskChecked(this.state.doc.sliceString(marker.from, marker.to))
+    if (checked) this.mark(MARK.taskDone, marker.to, node.to)
+
+    if (isRevealed(spans, marker.from, marker.to)) return
+
+    this.replaceWithWidget(checked ? CHECKBOX.checked : CHECKBOX.unchecked, marker.from, marker.to)
   }
 
   /**
