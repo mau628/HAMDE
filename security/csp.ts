@@ -1,5 +1,5 @@
 /**
- * Content Security Policy for YAMDE.
+ * Content Security Policy for HAMDE.
  *
  * Delivered as a <meta http-equiv> because GitHub Pages cannot set HTTP headers.
  * Known limitation of the meta form: `frame-ancestors`, `sandbox` and `report-uri`

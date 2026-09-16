@@ -74,7 +74,7 @@ export async function renderDiagram(code: string): Promise<DiagramResult> {
     await mermaid.parse(code)
 
     nextId += 1
-    const { svg } = await mermaid.render('yamde-diagram-' + nextId, code)
+    const { svg } = await mermaid.render('hamde-diagram-' + nextId, code)
 
     const element = svgFromMarkup(svg)
     if (element === null) return { ok: false, message: 'Mermaid produced markup that is not SVG' }

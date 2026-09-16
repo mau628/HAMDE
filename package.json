@@ -1,5 +1,5 @@
 {
-  "name": "yamde",
+  "name": "hamde",
   "version": "0.0.0",
   "private": true,
   "description": "Local-first Markdown editor with Obsidian-style live preview. Runs entirely in the browser.",

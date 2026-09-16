@@ -37,7 +37,7 @@ test('types text into the document', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+Home')
   await page.keyboard.type('Typed. ')
 
-  await expect.poll(() => editorText(page)).toContain('Typed. # YAMDE')
+  await expect.poll(() => editorText(page)).toContain('Typed. # HAMDE')
 })
 
 test('undoes and redoes an edit', async ({ page }) => {

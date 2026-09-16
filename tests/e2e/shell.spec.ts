@@ -16,7 +16,7 @@ test('the shell loads with no console errors and no outbound requests', async ({
 
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: 'YAMDE' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'HAMDE' })).toBeVisible()
   await expect(page.getByText('Files never leave your device.')).toBeVisible()
 
   // A CSP violation surfaces as a console error, so this assertion also guards

@@ -1,4 +1,4 @@
-# YAMDE
+# HAMDE
 
 A Markdown editor that runs entirely in your browser and edits the files in a folder
 on your own disk. No backend, no account, no upload — the app makes no network
@@ -9,7 +9,7 @@ syntax; everything else reads as the finished document.
 
 ```
 ┌──────────────────┬──────────────────────────────────────────┐
-│ YAMDE            │  My document                             │
+│ HAMDE            │  My document                             │
 │ [ Open Folder ]  │                                          │
 │                  │  Some text with bold and a link.         │
 │ NOTES        ⟳   │                                          │
@@ -68,16 +68,16 @@ Node.js 24.11 or newer for development.
 
 ## Commands
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Development server |
-| `npm run generate` | Static build into `.output/public`, then applies CSP script hashes |
-| `npm run serve:static` | Serves `.output/public` exactly as a static host would |
-| `npm run typecheck` | `vue-tsc --noEmit` |
-| `npm run test` | Unit tests (Vitest) |
-| `npm run test:e2e` | Builds, then runs browser tests (Playwright/Chromium) |
-| `npm run check:offline` | Fails if the build references any remote origin |
-| `npm run verify` | typecheck + unit tests + build + offline check |
+| Command                 | What it does                                                       |
+| ----------------------- | ------------------------------------------------------------------ |
+| `npm run dev`           | Development server                                                 |
+| `npm run generate`      | Static build into `.output/public`, then applies CSP script hashes |
+| `npm run serve:static`  | Serves `.output/public` exactly as a static host would             |
+| `npm run typecheck`     | `vue-tsc --noEmit`                                                 |
+| `npm run test`          | Unit tests (Vitest)                                                |
+| `npm run test:e2e`      | Builds, then runs browser tests (Playwright/Chromium)              |
+| `npm run check:offline` | Fails if the build references any remote origin                    |
+| `npm run verify`        | typecheck + unit tests + build + offline check                     |
 
 ## Documentation
 

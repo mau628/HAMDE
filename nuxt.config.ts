@@ -1,7 +1,7 @@
 import { buildCsp } from './security/csp'
 
 // GitHub Pages deployment is deliberately deferred; when it lands, set
-// NUXT_APP_BASE_URL=/YAMDE/ in the build environment. Local dev stays at '/'.
+// NUXT_APP_BASE_URL=/HAMDE/ in the build environment. Local dev stays at '/'.
 const baseURL = process.env.NUXT_APP_BASE_URL ?? '/'
 
 // `nuxt dev` runs with NODE_ENV=development, `nuxt build`/`nuxt generate` with
@@ -18,7 +18,7 @@ export default defineNuxtConfig({
   app: {
     baseURL,
     head: {
-      title: 'YAMDE',
+      title: 'HAMDE',
       htmlAttrs: { lang: 'en' },
       meta: [
         { charset: 'utf-8' },

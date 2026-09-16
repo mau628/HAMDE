@@ -124,7 +124,7 @@ test('the scratch document stays editable, since it is backed by no file', async
   await page.keyboard.press('ControlOrMeta+Home')
   await page.keyboard.type('Scratch. ')
 
-  await expect(page.locator('.cm-content')).toContainText('Scratch. # YAMDE')
+  await expect(page.locator('.cm-content')).toContainText('Scratch. # HAMDE')
 })
 
 test('treats a cancelled picker as a normal outcome', async ({ page }) => {

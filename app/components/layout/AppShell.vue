@@ -24,7 +24,7 @@ function onChange(text: string) {
 <template>
   <div class="shell">
     <aside class="shell__explorer" aria-label="Files">
-      <h1 class="shell__title">YAMDE</h1>
+      <h1 class="shell__title">HAMDE</h1>
 
       <button class="shell__open" :disabled="busy || !isSupported" @click="openFolder()">
         {{ root ? 'Open another folder' : 'Open Folder' }}
