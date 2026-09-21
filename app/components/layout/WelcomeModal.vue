@@ -55,6 +55,7 @@ function close() {
       aria-labelledby="welcome-title"
     >
       <h2 id="welcome-title" class="welcome__title">HAMDE</h2>
+      <p><em>Here's Another Markdown Editor.</em></p>
 
       <p>
         This is a free project that aims to make managing markdown files easy and safe,

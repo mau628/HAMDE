@@ -31,7 +31,7 @@ function onChange(text: string) {
 <template>
   <div class="shell">
     <aside class="shell__explorer" aria-label="Files">
-      <h1 class="shell__title">
+      <h1 class="shell__title" title="Here's Another Markdown Editor">
         <img class="shell__logo" :src="logoSrc" alt="" width="96" height="96" />
         HAMDE
       </h1>

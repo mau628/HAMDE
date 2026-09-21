@@ -4,6 +4,8 @@
 
 # HAMDE
 
+*Here's Another Markdown Editor.*
+
 A Markdown editor that runs entirely in your browser and edits the files in a folder
 on your own disk. No backend, no account, no upload — the app makes no network
 request at all once the page has loaded.

@@ -7,7 +7,7 @@
  */
 export const welcomeDocument = `# HAMDE
 
-A local Markdown editor. Open a folder on the left to edit your own notes; this
+*Here's Another Markdown Editor.* Open a folder on the left to edit your own notes; this
 page is a scratch buffer and is not saved anywhere.
 
 ## Inline formatting

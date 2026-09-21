@@ -26,7 +26,7 @@ export default defineNuxtConfig({
   app: {
     baseURL,
     head: {
-      title: 'HAMDE',
+      title: "HAMDE — Here's Another Markdown Editor",
       htmlAttrs: { lang: 'en' },
       meta: [
         { charset: 'utf-8' },
