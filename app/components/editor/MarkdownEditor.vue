@@ -167,14 +167,12 @@ watch(
   padding: 4px;
   color: var(--color-text-muted);
   background: var(--color-bg);
-  border: 1px solid transparent;
-  border-radius: 4px;
+  border: 0;
   cursor: pointer;
 }
 
 .editor__width:hover,
 .editor__width:focus-visible {
-  color: var(--color-text);
-  border-color: var(--color-text-muted);
+  color: var(--color-accent);
 }
 </style>
