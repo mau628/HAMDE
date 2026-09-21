@@ -21,7 +21,7 @@ let loading: Promise<typeof import('mermaid').default> | null = null
 let nextId = 0
 
 function prefersDark(): boolean {
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+  return currentTheme() === 'dark'
 }
 
 async function getMermaid() {
@@ -37,7 +37,7 @@ async function getMermaid() {
       flowchart: { htmlLabels: false },
       class: { htmlLabels: false },
       // The theme is chosen once, when the first diagram renders. Switching the
-      // system theme afterwards needs a reload; see docs/live-preview.md.
+      // theme afterwards needs a reload; see docs/live-preview.md.
       theme: prefersDark() ? 'dark' : 'default',
       fontFamily: 'system-ui, sans-serif',
     })
