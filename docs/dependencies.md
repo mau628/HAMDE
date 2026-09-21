@@ -88,6 +88,11 @@ actually drawn.
   actively published — `@codemirror/view@6.43.12` shipped on 2026-09-15. Do not read
   "archived" as abandoned, but **do** verify APIs against `codemirror.net/docs` rather
   than the GitHub mirror, which may lag.
+- **`lodash-es` is pinned to 4.18.1 through `overrides`** in `package.json`. Mermaid
+  12.0.0 reaches it via `chevrotain` and `dagre-d3-es`, and the 4.17.x line carries
+  GHSA-r5fr-rjxr-66jc (code injection in `_.template`) and GHSA-f23m-r3pf-42rh
+  (prototype pollution in `_.unset` / `_.omit`). Remove the override once Mermaid
+  depends on a patched release itself.
 - **Mermaid 12.0.0** was published 2026-09-10. Before adopting it, M8 verifies the
   `initialize` / `parse` / `render` contract; if there is friction, we pin the last
   11.x release instead.
