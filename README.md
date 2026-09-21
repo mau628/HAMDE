@@ -1,4 +1,6 @@
-<img src="public/logo.svg" alt="HAMDE" width="80" />
+<p align="center">
+  <img src="public/logo.svg" alt="HAMDE" width="160" />
+</p>
 
 # HAMDE
 
