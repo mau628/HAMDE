@@ -1,4 +1,4 @@
-import { isSafeHref } from '~/services/links'
+import { isSafeHref, OPEN_LINK_HINT } from '~/services/links'
 import type { InlineNode } from './inlineModel'
 
 /**
@@ -61,6 +61,7 @@ function link(href: string, children: readonly InlineNode[]): HTMLElement {
   anchor.href = href.trim()
   anchor.target = '_blank'
   anchor.rel = 'noopener noreferrer'
+  anchor.title = OPEN_LINK_HINT
   anchor.append(inlineToDom(children))
   return anchor
 }

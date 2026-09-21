@@ -72,6 +72,10 @@
 
 .cm-editor .cm-md-url {
   color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .cm-editor .cm-md-bullet {

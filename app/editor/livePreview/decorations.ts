@@ -5,6 +5,7 @@ import type { SyntaxNodeRef } from '@lezer/common'
 
 import { replacedBlockRanges } from './blockPreview'
 import { isWorkspacePath } from '~/services/imageService'
+import { OPEN_LINK_HINT } from '~/services/links'
 import { imageResolver, ImageWidget } from './images'
 import { isRevealed, revealedSpans, type Span } from './reveal'
 import { isTaskChecked } from './task'
@@ -48,8 +49,8 @@ const MARK = {
   emphasis: Decoration.mark({ class: 'cm-md-emphasis' }),
   strikethrough: Decoration.mark({ class: 'cm-md-strikethrough' }),
   inlineCode: Decoration.mark({ class: 'cm-md-code' }),
-  link: Decoration.mark({ class: 'cm-md-link' }),
-  url: Decoration.mark({ class: 'cm-md-url' }),
+  link: Decoration.mark({ class: 'cm-md-link', attributes: { title: OPEN_LINK_HINT } }),
+  url: Decoration.mark({ class: 'cm-md-url', attributes: { title: OPEN_LINK_HINT } }),
   listMark: Decoration.mark({ class: 'cm-md-list-mark' }),
   punctuation: Decoration.mark({ class: 'cm-md-punctuation' }),
   taskDone: Decoration.mark({ class: 'cm-md-task-done' }),

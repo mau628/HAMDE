@@ -43,3 +43,9 @@ export function openExternal(href: string): boolean {
   window.open(href.trim(), '_blank', 'noopener,noreferrer')
   return true
 }
+
+/** The tooltip for a link: a plain click edits the text, so opening needs a modifier. */
+export const OPEN_LINK_HINT =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+    ? 'Cmd+click to open link'
+    : 'Ctrl+click to open link'
