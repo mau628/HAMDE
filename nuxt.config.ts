@@ -15,6 +15,14 @@ export default defineNuxtConfig({
   // Nuxt DevTools phones home for its own updates; keep the app network-free.
   devtools: { enabled: false },
 
+  // Overridable at build time with NUXT_PUBLIC_REPO_URL / NUXT_PUBLIC_COFFEE_URL.
+  runtimeConfig: {
+    public: {
+      repoUrl: 'https://github.com/Mau628/hamde',
+      coffeeUrl: 'https://buymeacoffee.com/mau628',
+    },
+  },
+
   app: {
     baseURL,
     head: {
@@ -27,6 +35,7 @@ export default defineNuxtConfig({
         { name: 'referrer', content: 'no-referrer' },
         { name: 'color-scheme', content: 'light dark' },
       ],
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: `${baseURL}logo.svg` }],
     },
   },
 

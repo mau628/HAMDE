@@ -1,3 +1,5 @@
+<img src="public/logo.svg" alt="HAMDE" width="80" />
+
 # HAMDE
 
 A Markdown editor that runs entirely in your browser and edits the files in a folder
