@@ -11,24 +11,21 @@ request at all once the page has loaded.
 Markdown renders as you write it, in place. The line your cursor is on shows its
 syntax; everything else reads as the finished document.
 
-```
-┌──────────────────┬──────────────────────────────────────────┐
-│ HAMDE            │  My document                             │
-│ [ Open Folder ]  │                                          │
-│                  │  Some text with bold and a link.         │
-│ NOTES        ⟳   │                                          │
-│  ▾ Projects      │  > A quotation.                          │
-│      api.md      │                                          │
-│      todo.md     │  ☑ a finished task                       │
-│  ▸ Personal      │  ☐ this line **shows** its syntax        │
-│    README.md     │                                          │
-│                  │        ┌───┐      ┌───┐                  │
-│                  │        │ A │ ───▶ │ B │                  │
-│                  │        └───┘      └───┘                  │
-│ Files never      │                                          │
-│ leave your       │                   note.md · Saved        │
-│ device.          │                                          │
-└──────────────────┴──────────────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph disk["Your device"]
+    folder[("Local folder<br/>*.md files")]
+  end
+
+  subgraph browser["Browser tab (no network)"]
+    direction LR
+    sidebar["Sidebar<br/>Open Folder · file tree"]
+    editor["Editor<br/>live preview, autosave"]
+    sidebar -- "open file" --> editor
+  end
+
+  folder <-- "File System Access API" --> sidebar
+  editor -- "save" --> folder
 ```
 
 ## Requirements
