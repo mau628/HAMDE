@@ -142,6 +142,18 @@ export function createFileSystemService(): FileSystemService {
       }
     },
 
+    async createFile(directory: DirectoryNode, name: string) {
+      try {
+        await directory.handle.getFileHandle(name)
+        return null // already exists; never overwrite
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error
+      }
+
+      const handle = await directory.handle.getFileHandle(name, { create: true })
+      return { kind: 'file', name, path: joinPath(directory.path, name), handle }
+    },
+
     async ensureWritePermission(node: FileTreeNode) {
       const descriptor: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' }
 

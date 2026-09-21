@@ -381,19 +381,29 @@ body {
   color: var(--color-text-muted);
 }
 
-.explorer__refresh {
+.explorer__actions {
+  display: flex;
   flex: none;
-  padding: 0;
-  font: inherit;
-  font-size: 11px;
+  gap: calc(var(--space) * 1.5);
+}
+
+.explorer__action {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
   color: var(--color-text-muted);
   cursor: pointer;
   background: none;
   border: 0;
 }
 
-.explorer__refresh:hover:not(:disabled) {
+.explorer__action:hover:not(:disabled) {
   color: var(--color-accent);
+}
+
+.explorer__action:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .explorer__tree,

@@ -65,6 +65,12 @@ export interface FileSystemService {
    * rather than something layered on later.
    */
   writeFile(file: FileNode, text: string, expected: FileStamp | null): Promise<WriteResult>
+  /**
+   * Creates an empty file directly inside `directory`.
+   *
+   * Never overwrites: resolves to `null` if a file with that name already exists.
+   */
+  createFile(directory: DirectoryNode, name: string): Promise<FileNode | null>
   /** Ensures write permission is still granted, prompting if the browser allows. */
   ensureWritePermission(node: FileTreeNode): Promise<boolean>
   /**

@@ -1,4 +1,4 @@
-import { fileSystemService } from '~/services/fileSystemService'
+import { fileSystemService, isHiddenEntry, isMarkdownFile } from '~/services/fileSystemService'
 import { releaseImages } from '~/services/imageService'
 import type { DirectoryNode, FileNode, FileTreeNode } from '~/types/fileSystem'
 
@@ -136,6 +136,39 @@ export function useWorkspace() {
     }
   }
 
+  /**
+   * Creates an empty Markdown file in the workspace root and opens it.
+   *
+   * Appends `.md` when the name has no Markdown extension.
+   */
+  async function createFile(rawName: string): Promise<void> {
+    if (root.value === null) return
+
+    const name = rawName.trim()
+    if (name === '' || /[\\/:*?"<>|]/.test(name) || isHiddenEntry(name)) {
+      error.value = { kind: 'read-failed', path: name, message: 'Invalid file name' }
+      return
+    }
+    const fileName = isMarkdownFile(name) ? name : `${name}.md`
+
+    error.value = null
+    busy.value = true
+    try {
+      const file = await fileSystemService.createFile(root.value, fileName)
+      if (file === null) {
+        error.value = { kind: 'read-failed', path: fileName, message: 'A file with that name already exists' }
+        return
+      }
+      withRawHandle(file)
+      await refresh()
+      await openFile(file)
+    } catch (cause) {
+      error.value = toWorkspaceError(cause, fileName)
+    } finally {
+      busy.value = false
+    }
+  }
+
   return {
     root,
     error: readonly(error),
@@ -146,6 +179,7 @@ export function useWorkspace() {
     toggleDirectory,
     openFile,
     refresh,
+    createFile,
   }
 }
 
