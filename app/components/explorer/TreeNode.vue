@@ -26,9 +26,21 @@ const indent = computed(() => `${props.depth * 14}px`)
       :aria-expanded="isExpanded(node.path)"
       @click="toggleDirectory(node)"
     >
-      <span class="node__chevron" :class="{ 'node__chevron--open': isExpanded(node.path) }" aria-hidden="true">
-        &#9656;
-      </span>
+      <svg
+        class="node__chevron"
+        :class="{ 'node__chevron--open': isExpanded(node.path) }"
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m9 6 6 6-6 6" />
+      </svg>
       <span class="node__name">{{ node.name }}</span>
     </button>
 
@@ -40,6 +52,22 @@ const indent = computed(() => `${props.depth * 14}px`)
       :aria-current="isActive ? 'true' : undefined"
       @click="openFile(node)"
     >
+      <!-- The Markdown mark: an "M" and a down arrow in a box. -->
+      <svg
+        class="node__icon"
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <path d="M6 15V9l3 3 3-3v6M17 9v6m-2-2 2 2 2-2" />
+      </svg>
       <span class="node__name">{{ node.name }}</span>
     </button>
 

@@ -502,10 +502,20 @@ body {
   background: var(--color-selection);
 }
 
-.node__chevron {
+.node__chevron,
+.node__icon {
   flex: none;
-  width: 10px;
-  font-size: 10px;
+}
+
+.node__icon {
+  color: var(--color-text-muted);
+}
+
+.node__row--active .node__icon {
+  color: inherit;
+}
+
+.node__chevron {
   color: var(--color-text-muted);
   transition: transform 80ms linear;
 }
