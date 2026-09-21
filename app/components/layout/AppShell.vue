@@ -2,7 +2,7 @@
 import { welcomeDocument } from '~/editor/welcomeDocument'
 
 const { theme, toggle: toggleTheme } = useTheme()
-const { root, error, busy, isSupported, openFolder } = useWorkspace()
+const { root, error, busy, isSupported, openFolder, restoreLastFolder } = useWorkspace()
 const { activeDocument, edit } = useDocument()
 
 const config = useRuntimeConfig()
@@ -11,6 +11,11 @@ const { repoUrl, coffeeUrl } = config.public
 
 /** Set by the welcome modal while it points at the sidebar links. */
 const highlightLinks = ref(false)
+
+// Reopen the last folder; every failure is silent and leaves the default document.
+onMounted(() => {
+  void restoreLastFolder()
+})
 
 // Ctrl+S, save on blur, save before the page closes.
 useAutoSave()

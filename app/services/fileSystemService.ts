@@ -51,6 +51,35 @@ function sameStamp(a: FileStamp, b: FileStamp): boolean {
   return a.lastModified === b.lastModified && a.size === b.size
 }
 
+const DATABASE = 'hamde'
+const STORE = 'handles'
+const LAST_FOLDER_KEY = 'lastFolder'
+
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DATABASE, 1)
+    request.onupgradeneeded = () => request.result.createObjectStore(STORE)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function runOnStore<T>(
+  mode: IDBTransactionMode,
+  action: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  const database = await openDatabase()
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const request = action(database.transaction(STORE, mode).objectStore(STORE))
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  } finally {
+    database.close()
+  }
+}
+
 export function createFileSystemService(): FileSystemService {
   return {
     isSupported() {
@@ -65,6 +94,36 @@ export function createFileSystemService(): FileSystemService {
         // The user dismissing the picker is a normal outcome, not a failure.
         if (error instanceof DOMException && error.name === 'AbortError') return null
         throw error
+      }
+    },
+
+    async rememberDirectory(directory: DirectoryNode) {
+      // Remembering is a convenience: a blocked or full store must not surface.
+      try {
+        await runOnStore('readwrite', (store) => store.put(directory.handle, LAST_FOLDER_KEY))
+      } catch {
+        // ignore
+      }
+    },
+
+    async forgetDirectory() {
+      try {
+        await runOnStore('readwrite', (store) => store.delete(LAST_FOLDER_KEY))
+      } catch {
+        // ignore
+      }
+    },
+
+    async recallDirectory() {
+      try {
+        const handle = await runOnStore<unknown>('readonly', (store) => store.get(LAST_FOLDER_KEY))
+        if (!(handle instanceof FileSystemDirectoryHandle)) return null
+        // Asking would need a user gesture, and a prompt on page load is not silent:
+        // without a standing grant the folder is simply not restored.
+        if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') return null
+        return { kind: 'directory', name: handle.name, path: '', handle, children: null }
+      } catch {
+        return null
       }
     },
 

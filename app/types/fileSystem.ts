@@ -53,6 +53,15 @@ export interface FileSystemService {
   isSupported(): boolean
   /** Prompts for a folder. Resolves to `null` if the user cancels. */
   pickDirectory(): Promise<DirectoryNode | null>
+  /** Stores the folder so the next page load can reopen it. Never throws. */
+  rememberDirectory(directory: DirectoryNode): Promise<void>
+  /** Drops the stored folder. Never throws. */
+  forgetDirectory(): Promise<void>
+  /**
+   * The stored folder, if it can be used without prompting; otherwise `null`.
+   * Never throws.
+   */
+  recallDirectory(): Promise<DirectoryNode | null>
   /** Reads one level: subdirectories and Markdown files, sorted for display. */
   listChildren(directory: DirectoryNode): Promise<FileTreeNode[]>
   readFile(file: FileNode): Promise<{ text: string; stamp: FileStamp }>

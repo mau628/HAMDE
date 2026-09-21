@@ -73,10 +73,35 @@ export function useWorkspace() {
       await loadChildren(directory)
       root.value = directory
       expandedPaths.value = [directory.path]
+      void fileSystemService.rememberDirectory(directory)
     } catch (cause) {
       error.value = toWorkspaceError(cause, '')
     } finally {
       busy.value = false
+    }
+  }
+
+  /**
+   * Reopens the folder from the previous session, silently.
+   *
+   * Any failure — nothing remembered, folder deleted or moved, permission not
+   * granted — leaves the app on its default document with no message.
+   */
+  async function restoreLastFolder(): Promise<void> {
+    if (root.value !== null || !fileSystemService.isSupported()) return
+
+    const recalled = await fileSystemService.recallDirectory()
+    if (recalled === null) return
+
+    try {
+      const directory = withRawHandle(recalled)
+      await loadChildren(directory)
+      // The user may have opened a folder themselves while this was resolving.
+      if (root.value !== null) return
+      root.value = directory
+      expandedPaths.value = [directory.path]
+    } catch {
+      await fileSystemService.forgetDirectory()
     }
   }
 
@@ -176,6 +201,7 @@ export function useWorkspace() {
     isSupported,
     isExpanded,
     openFolder,
+    restoreLastFolder,
     toggleDirectory,
     openFile,
     refresh,
