@@ -84,25 +84,60 @@ export function useWorkspace() {
   /**
    * Reopens the folder from the previous session, silently.
    *
-   * Any failure — nothing remembered, folder deleted or moved, permission not
-   * granted — leaves the app on its default document with no message.
+   * Any failure — nothing remembered, folder deleted or moved, permission refused —
+   * leaves the app on its default document with no message.
+   *
+   * Chrome usually drops the folder's permission on reload, and asking for it back
+   * needs a user gesture. So when it cannot be had silently, the first click or key
+   * press in the page asks for it, and only that one time.
    */
   async function restoreLastFolder(): Promise<void> {
     if (root.value !== null || !fileSystemService.isSupported()) return
 
-    const recalled = await fileSystemService.recallDirectory()
-    if (recalled === null) return
+    if (await restoreFrom(await fileSystemService.recallDirectory({ prompt: false }))) return
+
+    const onGesture = (event: Event) => {
+      // The Open Folder button has its own picker; do not stack a prompt on it.
+      if (event.target instanceof Element && event.target.closest('.shell__open')) return
+      stop()
+      if (root.value !== null) return
+      void fileSystemService
+        .recallDirectory({ prompt: true })
+        .then((directory) => restoreFrom(directory))
+    }
+    const stop = () => {
+      window.removeEventListener('pointerdown', onGesture, true)
+      window.removeEventListener('keydown', onGesture, true)
+    }
+    window.addEventListener('pointerdown', onGesture, true)
+    window.addEventListener('keydown', onGesture, true)
+  }
+
+  /** Opens a recalled folder and its first file. Resolves to whether it was opened. */
+  async function restoreFrom(recalled: DirectoryNode | null): Promise<boolean> {
+    if (recalled === null) return false
 
     try {
       const directory = withRawHandle(recalled)
       await loadChildren(directory)
       // The user may have opened a folder themselves while this was resolving.
-      if (root.value !== null) return
+      if (root.value !== null) return true
       root.value = directory
       expandedPaths.value = [directory.path]
     } catch {
       await fileSystemService.forgetDirectory()
+      return false
     }
+
+    // The first file in the explorer's order. Directories sort first, so this is
+    // the first file among the root's children, not necessarily the first row.
+    const first = recalled.children?.find((child): child is FileNode => child.kind === 'file')
+    if (first !== undefined) {
+      await openFile(first)
+      // Nobody asked for this file, so a failure to read it is not worth a message.
+      error.value = null
+    }
+    return true
   }
 
   async function toggleDirectory(directory: DirectoryNode): Promise<void> {

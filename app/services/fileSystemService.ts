@@ -114,13 +114,19 @@ export function createFileSystemService(): FileSystemService {
       }
     },
 
-    async recallDirectory() {
+    async recallDirectory(options) {
       try {
         const handle = await runOnStore<unknown>('readonly', (store) => store.get(LAST_FOLDER_KEY))
         if (!(handle instanceof FileSystemDirectoryHandle)) return null
-        // Asking would need a user gesture, and a prompt on page load is not silent:
-        // without a standing grant the folder is simply not restored.
-        if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') return null
+
+        const descriptor: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' }
+        let permission = await handle.queryPermission(descriptor)
+        // Prompting needs a user gesture, so only the caller that is inside one may ask.
+        if (permission === 'prompt' && options.prompt) {
+          permission = await handle.requestPermission(descriptor)
+        }
+        if (permission !== 'granted') return null
+
         return { kind: 'directory', name: handle.name, path: '', handle, children: null }
       } catch {
         return null

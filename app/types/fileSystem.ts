@@ -58,10 +58,12 @@ export interface FileSystemService {
   /** Drops the stored folder. Never throws. */
   forgetDirectory(): Promise<void>
   /**
-   * The stored folder, if it can be used without prompting; otherwise `null`.
-   * Never throws.
+   * The stored folder, if it is usable; otherwise `null`. Never throws.
+   *
+   * With `prompt`, a folder whose permission lapsed is asked for again. That only
+   * works from inside a user gesture.
    */
-  recallDirectory(): Promise<DirectoryNode | null>
+  recallDirectory(options: { prompt: boolean }): Promise<DirectoryNode | null>
   /** Reads one level: subdirectories and Markdown files, sorted for display. */
   listChildren(directory: DirectoryNode): Promise<FileTreeNode[]>
   readFile(file: FileNode): Promise<{ text: string; stamp: FileStamp }>
