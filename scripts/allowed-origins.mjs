@@ -45,4 +45,10 @@ export const ALLOWED_INERT_URLS = [
   // (`connect-src 'none'`, no remote img/script) blocks any automatic request.
   'https://github.com/Mau628/hamde',
   'https://buymeacoffee.com/mau628',
+
+  // SEO metadata (canonical, Open Graph, JSON-LD). Inert <link>/<meta>/data
+  // values; the browser never fetches them.
+  'https://schema.org',
+  'http://www.sitemaps.org/schemas/sitemap/',
+  'https://hamde.mau628.com/',
 ]

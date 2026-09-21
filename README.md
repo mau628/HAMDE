@@ -6,9 +6,12 @@
 
 *Here's Another Markdown Editor.*
 
-A Markdown editor that runs entirely in your browser and edits the files in a folder
-on your own disk. No backend, no account, no upload — the app makes no network
-request at all once the page has loaded.
+**[Try it live → hamde.mau628.com](https://hamde.mau628.com)**
+
+A free, open-source, local-first Markdown editor with an Obsidian-style live preview.
+It runs entirely in your browser and edits the files in a folder on your own disk.
+No backend, no account, no upload — the app makes no network request at all once the
+page has loaded.
 
 Markdown renders as you write it, in place. The line your cursor is on shows its
 syntax; everything else reads as the finished document.
@@ -97,8 +100,6 @@ Node.js 24.11 or newer for development.
 The MVP is complete: open a folder, edit Markdown with live preview, save
 automatically, resolve external changes, and render code and diagrams — all of it
 without a byte leaving the machine.
-
-Not yet done: deployment to GitHub Pages, which is configuration rather than code.
 
 Possible next steps, none of which the editor needs rewriting for: wikilinks,
 remembering the last folder across sessions, and search.

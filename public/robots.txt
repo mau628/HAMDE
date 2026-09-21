@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# AI crawlers are welcome: the project is open source and meant to be found.
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://hamde.mau628.com/sitemap.xml
