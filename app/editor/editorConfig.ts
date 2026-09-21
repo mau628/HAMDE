@@ -3,6 +3,7 @@ import { syntaxHighlighting } from '@codemirror/language'
 import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, drawSelection, highlightSpecialChars, keymap } from '@codemirror/view'
 
+import { codeFenceCompletion } from './codeFence'
 import { markdownHighlightStyle } from './highlightStyle'
 import { imageResolver, type ImageResolver } from './livePreview/images'
 import { livePreview } from './livePreview'
@@ -47,6 +48,7 @@ export function createEditorExtensions(options: EditorOptions): Extension[] {
     // Prose wraps; a Markdown document has no horizontal scroll.
     EditorView.lineWrapping,
 
+    codeFenceCompletion,
     createMarkdownSupport(),
     syntaxHighlighting(markdownHighlightStyle),
     // Renders Markdown in place, revealing the syntax of the line the cursor is on.
