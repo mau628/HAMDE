@@ -44,8 +44,10 @@ export function openExternal(href: string): boolean {
   return true
 }
 
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
+/** The modifier key name shown in hints: Cmd on Apple platforms, Ctrl elsewhere. */
+export const MOD_KEY_LABEL = IS_MAC ? 'Cmd' : 'Ctrl'
+
 /** The tooltip for a link: a plain click edits the text, so opening needs a modifier. */
-export const OPEN_LINK_HINT =
-  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-    ? 'Cmd+click to open link'
-    : 'Ctrl+click to open link'
+export const OPEN_LINK_HINT = `${MOD_KEY_LABEL}+click to open link`

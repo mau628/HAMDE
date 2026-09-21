@@ -24,6 +24,8 @@ export interface EditorOptions {
    * Supplied by the app, which is the part that knows about the open folder.
    */
   resolveImage: ImageResolver
+  /** Switches between the narrow and wide editor. Bound to Ctrl/Cmd+, */
+  toggleWidth: () => void
 }
 
 export function createEditorExtensions(options: EditorOptions): Extension[] {
@@ -37,6 +39,13 @@ export function createEditorExtensions(options: EditorOptions): Extension[] {
       // macOS. Ctrl+Shift+Z is what users of every other editor reach for, so it is
       // bound everywhere.
       { key: 'Mod-Shift-z', run: redo },
+      {
+        key: 'Mod-,',
+        run: () => {
+          options.toggleWidth()
+          return true
+        },
+      },
       ...defaultKeymap,
       ...historyKeymap,
     ]),

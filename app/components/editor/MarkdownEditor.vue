@@ -4,6 +4,7 @@ import { EditorView, type ViewUpdate } from '@codemirror/view'
 
 import { createEditorExtensions } from '~/editor/editorConfig'
 import { loadWorkspaceImage } from '~/services/imageService'
+import { MOD_KEY_LABEL } from '~/services/links'
 
 const props = defineProps<{
   /** The document's Markdown source. */
@@ -71,7 +72,7 @@ onMounted(() => {
     state: EditorState.create({
       doc: props.doc,
       extensions: [
-        ...createEditorExtensions({ resolveImage }),
+        ...createEditorExtensions({ resolveImage, toggleWidth }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isProgrammatic(update)) {
             emit('change', update.state.doc.toString())
@@ -114,7 +115,7 @@ watch(
     <button
       type="button"
       class="editor__width"
-      :title="wide ? 'Narrow editor' : 'Wide editor'"
+      :title="`${wide ? 'Narrow editor' : 'Wide editor'} (${MOD_KEY_LABEL}+,)`"
       :aria-label="wide ? 'Narrow editor' : 'Wide editor'"
       :aria-pressed="wide"
       @click="toggleWidth"
