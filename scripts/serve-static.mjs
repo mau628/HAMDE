@@ -28,7 +28,14 @@ const CONTENT_TYPES = {
 
 async function resolveFile(pathname) {
   // Reject traversal by dropping any segment that is not a plain name.
-  const segments = decodeURIComponent(pathname)
+  let decoded
+  try {
+    decoded = decodeURIComponent(pathname)
+  } catch {
+    // Malformed percent-encoding (e.g. `%E0%A4%A`) is a bad request, not a crash.
+    return undefined
+  }
+  const segments = decoded
     .split("/")
     .filter((segment) => segment.length > 0 && segment !== "." && segment !== "..")
   const relative = segments.join("/")
@@ -49,6 +56,12 @@ async function resolveFile(pathname) {
 const server = createServer(async (request, response) => {
   const { pathname } = new URL(request.url ?? '/', `http://localhost:${PORT}`)
   const file = await resolveFile(pathname)
+
+  if (file === undefined) {
+    response.writeHead(400, { 'content-type': 'text/plain' })
+    response.end('Bad request')
+    return
+  }
 
   if (file === null) {
     response.writeHead(404, { 'content-type': 'text/plain' })
