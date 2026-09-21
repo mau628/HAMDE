@@ -140,6 +140,23 @@ export function useWorkspace() {
     return true
   }
 
+  /**
+   * Closes the open folder, which brings back the default document.
+   *
+   * The folder is also forgotten, so the next page load does not reopen it. Unsaved
+   * changes are saved first; if that fails the folder stays open.
+   */
+  async function closeFolder(): Promise<void> {
+    if (root.value === null) return
+    if (!(await openDocuments.closeDocument())) return
+
+    releaseImages()
+    root.value = null
+    expandedPaths.value = []
+    error.value = null
+    await fileSystemService.forgetDirectory()
+  }
+
   async function toggleDirectory(directory: DirectoryNode): Promise<void> {
     if (isExpanded(directory.path)) {
       expandedPaths.value = expandedPaths.value.filter((path) => path !== directory.path)
@@ -237,6 +254,7 @@ export function useWorkspace() {
     isExpanded,
     openFolder,
     restoreLastFolder,
+    closeFolder,
     toggleDirectory,
     openFile,
     refresh,

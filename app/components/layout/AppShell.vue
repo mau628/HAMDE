@@ -2,7 +2,7 @@
 import { welcomeDocument } from '~/editor/welcomeDocument'
 
 const { theme, toggle: toggleTheme } = useTheme()
-const { root, error, busy, isSupported, openFolder, restoreLastFolder } = useWorkspace()
+const { root, error, busy, isSupported, openFolder, restoreLastFolder, closeFolder } = useWorkspace()
 const { activeDocument, edit } = useDocument()
 
 const config = useRuntimeConfig()
@@ -42,9 +42,28 @@ function onChange(text: string) {
         HAMDE
       </h1>
 
-      <button class="shell__open" :disabled="busy || !isSupported" @click="openFolder()">
-        {{ root ? 'Open another folder' : 'Open Folder' }}
-      </button>
+      <div class="shell__actions">
+        <button class="shell__open" :disabled="busy || !isSupported" @click="openFolder()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+          </svg>
+          {{ root ? 'Open another folder' : 'Open Folder' }}
+        </button>
+
+        <button
+          v-if="root"
+          class="shell__close"
+          type="button"
+          :disabled="busy"
+          aria-label="Close folder"
+          title="Close folder"
+          @click="closeFolder()"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
       <p v-if="!isSupported" class="shell__notice">
         This editor needs the File System Access API, available in Chromium-based
