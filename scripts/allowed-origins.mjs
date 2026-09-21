@@ -38,4 +38,11 @@ export const ALLOWED_INERT_URLS = [
   // fixtures later), never as a resource the app loads. example.com is reserved
   // for documentation by RFC 2606 and resolves to nothing meaningful.
   'https://example.com',
+
+  // The project links in the sidebar and the welcome modal (runtimeConfig
+  // repoUrl / coffeeUrl). They are user-activated <a target="_blank"
+  // rel="noopener noreferrer"> anchors, never fetched by the page; the CSP
+  // (`connect-src 'none'`, no remote img/script) blocks any automatic request.
+  'https://github.com/Mau628/hamde',
+  'https://buymeacoffee.com/mau628',
 ]
