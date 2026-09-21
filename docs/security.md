@@ -28,7 +28,8 @@ a user who chooses to grant write access to a folder they do not control.
 ## Content Security Policy
 
 The policy lives in [`security/csp.ts`](../security/csp.ts) and is delivered as a
-`<meta http-equiv>` tag, because GitHub Pages cannot set HTTP headers.
+`<meta http-equiv>` tag, because GitHub Pages cannot set HTTP headers (a custom
+domain does not change that).
 
 ```
 default-src 'none'; script-src 'self' 'sha256-…'; style-src 'self' 'unsafe-inline';
@@ -78,6 +79,28 @@ Decisions worth knowing about:
   violation shows up as one) and issues no request to any host.
 - Unit tests assert the shape of the policy, including that it never contains
   `'unsafe-inline'` in `script-src`.
+
+## What stays in the browser
+
+Nothing from a note is ever stored. Three things are, all local to the browser
+profile and none sent anywhere:
+
+| What | Where | Why |
+| --- | --- | --- |
+| The last folder's `FileSystemDirectoryHandle` | IndexedDB (`hamde` / `handles`) | To reopen the folder on the next visit. A handle is an opaque reference; Chrome still asks for permission again, and "Close folder" deletes it. |
+| Theme, editor width | `localStorage` (`hamde-theme`, `hamde.editorWide`) | Per-viewer preferences. |
+| Whether the welcome dialog is hidden | `localStorage` (`hamde:hide-welcome`) | So it is not shown every visit. |
+
+Every read and write is wrapped so that blocked or unavailable storage (private
+mode, quota) degrades to the defaults instead of an error.
+
+## Search metadata
+
+The page's SEO metadata (canonical, Open Graph, JSON-LD, `sitemap.xml`) contains
+URLs, but none is fetched by the page: the JSON-LD is an inert `application/ld+json`
+data block, which the CSP does not treat as script and the build's inline-script
+hashing skips. The origins involved are listed in
+[`scripts/allowed-origins.mjs`](../scripts/allowed-origins.mjs) with their reasons.
 
 ## The file system boundary
 

@@ -37,7 +37,7 @@ committed; `npm audit` runs in CI.
 | **Vuetify / PrimeVue / Bootstrap / Tailwind** | Two panes and a tree. Hand-written CSS is smaller and has no upgrade treadmill. |
 | **DOMPurify** | There is nothing to sanitise: untrusted HTML is never inserted into the DOM. Adding it would imply the opposite. |
 | **Icon libraries** | A handful of inline SVGs. |
-| **`idb`** | No IndexedDB usage in the MVP. |
+| **`idb`** | IndexedDB holds a single value (the last folder's handle). About forty lines of raw `indexedDB` in `fileSystemService.ts` cover it. |
 | **The `codemirror` meta-package** | Bundles `basicSetup` and pulls in packages we do not use. Individual packages only. |
 | **A debounce library** | A dozen lines of code. |
 

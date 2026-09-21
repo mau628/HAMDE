@@ -59,11 +59,22 @@ Node.js 24.11 or newer for development.
   it.
 - **Mermaid diagrams**, rendered in place. Click one, or arrow into it, to edit its
   source. Mermaid itself is only downloaded when a diagram is actually drawn.
+- **Fences close themselves.** Typing the third backtick of a fence adds the closing one.
 - **Autosave**, 500 ms after you stop typing, and immediately on Ctrl+S, when the
   window loses focus, when the tab is hidden, and before switching documents.
 - **External changes are never overwritten.** If another program writes the file
   while you have it open, the app stops and asks whether to reload it or keep your
   version.
+- **Picks up where you left off.** The last folder and its first file reopen on the
+  next visit. Chrome usually drops folder permission on reload, so the first click or
+  key press in the page asks for it back, once. "Close folder" (the × next to Open
+  Folder) forgets it.
+- **Light and dark themes**, following the system until you choose one.
+- **Narrow or wide editor**, toggled with the button in the editor or Ctrl/Cmd+,.
+
+Only three small preferences stay in the browser, and none of them is note content:
+the last folder's handle (IndexedDB), the theme and editor width, and whether the
+welcome dialog is hidden (localStorage). See [docs/security.md](docs/security.md).
 
 ## What it deliberately does not do
 
@@ -97,9 +108,21 @@ Node.js 24.11 or newer for development.
 
 ## Status
 
-The MVP is complete: open a folder, edit Markdown with live preview, save
-automatically, resolve external changes, and render code and diagrams — all of it
-without a byte leaving the machine.
+The MVP is complete and deployed at [hamde.mau628.com](https://hamde.mau628.com):
+open a folder, edit Markdown with live preview, save automatically, resolve external
+changes, and render code and diagrams — all of it without a byte leaving the machine.
 
-Possible next steps, none of which the editor needs rewriting for: wikilinks,
-remembering the last folder across sessions, and search.
+Possible next steps, none of which the editor needs rewriting for: wikilinks and
+search.
+
+## Deployment and SEO
+
+`npm run generate` produces a static site, and the GitHub Actions workflow publishes
+it to GitHub Pages on every push to `main`. It is served from the root of its own
+domain, so no base path is needed. The canonical URL used in the page metadata
+defaults to `https://hamde.mau628.com`; override it with `NUXT_PUBLIC_SITE_URL`.
+
+For search engines and AI crawlers the page carries a description, Open Graph tags,
+JSON-LD (`WebApplication`) and `<noscript>` text, and `public/` ships `robots.txt`,
+`sitemap.xml` and `llms.txt`. The sitemap, robots and llms.txt files hard-code the
+domain, so update them if it changes.

@@ -165,8 +165,10 @@ docs/security.md.
 
 ### Known limitation
 
-The diagram theme follows the system colour scheme when the first diagram renders.
-Switching the system theme afterwards needs a reload.
+The diagram theme is the app's theme (the one chosen with the theme button, or the
+system colour scheme if none was chosen) at the moment the first diagram renders.
+Switching the theme afterwards, in the app or in the system, needs a reload for
+diagrams to follow.
 
 ## Tables
 
