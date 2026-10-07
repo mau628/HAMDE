@@ -12,6 +12,31 @@ const { repoUrl, coffeeUrl } = config.public
 /** Set by the welcome modal while it points at the sidebar links. */
 const highlightLinks = ref(false)
 
+const COLLAPSED_KEY = 'hamde.sidebarCollapsed'
+
+const sidebarCollapsed = ref(false)
+
+/** The links live in the expanded sidebar, so it stays open while they are pointed at. */
+const collapsed = computed(() => sidebarCollapsed.value && !highlightLinks.value)
+
+// A convenience only: storage can be blocked or empty, and expanded is a fine default.
+onMounted(() => {
+  try {
+    sidebarCollapsed.value = localStorage.getItem(COLLAPSED_KEY) === '1'
+  } catch {
+    // ignore
+  }
+})
+
+function toggleSidebar(): void {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  try {
+    localStorage.setItem(COLLAPSED_KEY, sidebarCollapsed.value ? '1' : '0')
+  } catch {
+    // ignore
+  }
+}
+
 // Reopen the last folder; every failure is silent and leaves the default document.
 onMounted(() => {
   void restoreLastFolder()
@@ -35,12 +60,27 @@ function onChange(text: string) {
 </script>
 
 <template>
-  <div class="shell">
+  <div class="shell" :class="{ 'shell--collapsed': collapsed }">
     <aside class="shell__explorer" aria-label="Files">
       <h1 class="shell__title" title="Here's Another Markdown Editor">
         <img class="shell__logo" :src="logoSrc" alt="" width="96" height="96" />
-        HAMDE
+        <span class="shell__name">HAMDE</span>
       </h1>
+
+      <button
+        class="shell__toggle"
+        type="button"
+        :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :aria-expanded="!collapsed"
+        @click="toggleSidebar()"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M9 4v16" />
+          <path :d="collapsed ? 'm14 10 2 2-2 2' : 'm16 10-2 2 2 2'" />
+        </svg>
+      </button>
 
       <div class="shell__actions">
         <button class="shell__open" :disabled="busy || !isSupported" @click="openFolder()">

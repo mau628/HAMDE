@@ -24,6 +24,7 @@
   --color-syntax-property: #7a5a1f;
 
   --explorer-width: 260px;
+  --explorer-collapsed-width: 44px;
   --space: 8px;
 }
 
@@ -102,6 +103,7 @@ body {
 }
 
 .shell__explorer {
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: auto;
@@ -133,6 +135,56 @@ body {
 
 .shell__logo {
   flex-shrink: 0;
+}
+
+.shell__toggle {
+  position: absolute;
+  top: var(--space);
+  right: var(--space);
+  display: flex;
+  padding: 4px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.shell__toggle:hover,
+.shell__toggle:focus-visible {
+  color: var(--color-accent);
+}
+
+/* Collapsed: a thin rail holding only the logo and the expand button. */
+.shell--collapsed {
+  grid-template-columns: var(--explorer-collapsed-width) 1fr;
+}
+
+.shell--collapsed .shell__explorer {
+  align-items: center;
+  gap: var(--space);
+  overflow: hidden;
+  padding: calc(var(--space) * 1.5) 0;
+}
+
+/* Hidden rather than unmounted, so the file tree keeps its open folders. */
+.shell--collapsed .shell__explorer > :not(.shell__title, .shell__toggle),
+.shell--collapsed .shell__name {
+  display: none;
+}
+
+.shell--collapsed .shell__title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.shell--collapsed .shell__logo {
+  width: 28px;
+  height: 28px;
+}
+
+.shell--collapsed .shell__toggle {
+  position: static;
 }
 
 .shell__privacy {
