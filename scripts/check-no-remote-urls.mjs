@@ -4,16 +4,19 @@
  *
  * "No network after load" is a product requirement, so it is enforced
  * mechanically rather than by convention or code review.
+ *
+ * Scans the web build by default; pass a directory to scan another one, which is
+ * how the VS Code extension's bundle is held to the same rule.
  */
 import { readdir, readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 
-const ROOT = '.output/public'
+const ROOT = process.argv[2] ?? '.output/public'
 
 import { ALLOWED_INERT_URLS } from "./allowed-origins.mjs"
 
 /** Files whose contents never reach the browser at runtime. */
-const IGNORED_EXTENSIONS = ['.map']
+const IGNORED_EXTENSIONS = ['.map', '.LEGAL.txt']
 
 // Requires a real hostname after the scheme, so scheme-only concatenation inside a
 // library ('https://' + host) is not mistaken for a hard-coded endpoint.

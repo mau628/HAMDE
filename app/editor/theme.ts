@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view'
 
 /**
  * Editor chrome. Every colour is a CSS custom property, so the light/dark palette
- * stays in one place (assets/css/main.css).
+ * stays in one place (assets/css/tokens.css).
  *
  * Note: CodeMirror injects these rules through a <style> element at runtime, which
  * is why the CSP allows 'unsafe-inline' for styles. See docs/security.md.

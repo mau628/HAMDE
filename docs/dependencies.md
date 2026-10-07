@@ -25,6 +25,26 @@ committed; `npm audit` runs in CI.
 | `@codemirror/lang-javascript`, `-json`, `-html`, `-css`, `-sql`, `-xml`, `-yaml` | Grammars for fenced code blocks, each imported dynamically so it costs nothing until a document uses it. |
 | `@codemirror/legacy-modes` | bash (`shell`), PowerShell and C# (`clike`), for which no Lezer grammar exists. Wrapped in `StreamLanguage`. |
 
+## The VS Code extension
+
+The extension in `vscode/` is an npm workspace of this repository: one lockfile, one
+`npm ci`. It has **no runtime dependencies of its own**. Its webview bundles the
+editor from `app/editor`, so CodeMirror and Mermaid are the ones in the table above,
+at the same pinned versions.
+
+What it adds is development-only, and none of it reaches the web app's build:
+
+| Package | Why it is needed |
+| --- | --- |
+| `esbuild` | Bundles the extension host code and the webview. Already in the tree through Vite, at this version; declared because the extension uses it directly. |
+| `@types/vscode` | The extension API's types. Pinned to the oldest VS Code the manifest supports, so the compiler refuses an API that version lacks. |
+| `@types/node` | The extension host is Node, and the extension's `tsconfig.json` does not inherit Nuxt's. |
+| `@vscode/vsce` | Packs the `.vsix` and publishes it. |
+| `@vscode/test-electron` | Downloads a VS Code and runs the smoke tests inside it. No test framework on top: the handful of checks use `node:assert`. The test that types in a real VS Code window drives it with Playwright, which the repository already has. |
+
+The packaged extension is about 1.7 MB (136 files, almost all of them Mermaid's
+lazily loaded chunks).
+
 ## Rejected, and why
 
 | Rejected | Reason |

@@ -28,6 +28,10 @@ jobs:
       - run: npm test
       - run: npm run generate
       - run: npm run check:offline
+      # The VS Code extension bundles the same editor. It is not released from
+      # here, but a change that breaks it should not reach main unnoticed.
+      - run: npm run build:vscode
+      - run: npm run check:offline:vscode
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: .output/public

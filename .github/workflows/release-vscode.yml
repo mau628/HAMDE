@@ -1,0 +1,60 @@
+name: Release VS Code extension
+
+# A release is a decision, not a side effect of pushing to main: it happens when a
+# tag named after the extension's version is pushed, e.g. `vscode-v0.1.0`.
+# Running it by hand builds and tests the extension without releasing anything.
+on:
+  push:
+    tags: ['vscode-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # to attach the .vsix to a GitHub release
+
+concurrency:
+  group: release-vscode
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Check the tag matches the manifest
+        if: github.ref_type == 'tag'
+        run: test "$GITHUB_REF_NAME" = "vscode-v$(node -p "require('./vscode/package.json').version")"
+
+      - run: npm run typecheck
+      - run: npm test
+
+      # Builds the production bundles and packs them into vscode/*.vsix.
+      - run: npm run package -w vscode
+      - run: npm run check:offline:vscode
+
+      # The webview as a page, under its real Content Security Policy.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- tests/e2e/vscodeWebview.spec.ts
+
+      # The extension inside a real VS Code, which needs a display on Linux: first
+      # what the manifest makes VS Code do, then typing, saving and undoing in it.
+      - run: xvfb-run -a npm run test:smoke -w vscode
+      - run: xvfb-run -a npm run test:editing -w vscode
+
+      - name: Attach the .vsix to a GitHub release
+        if: github.ref_type == 'tag'
+        run: gh release create "$GITHUB_REF_NAME" vscode/*.vsix --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Skipped until the VSCE_PAT secret exists; the .vsix above installs by hand.
+      - name: Publish to the Marketplace
+        if: github.ref_type == 'tag' && env.VSCE_PAT != ''
+        run: npx vsce publish --packagePath vscode/*.vsix

@@ -1,0 +1,11 @@
+# Everything is left out of the package unless it is listed below: the extension
+# is two bundles and a manifest, and nothing else from this folder belongs in it.
+**
+
+!package.json
+!README.md
+!LICENSE
+!icon.png
+!dist/**
+
+dist/**/*.map

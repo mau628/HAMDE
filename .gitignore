@@ -12,3 +12,9 @@ playwright-report
 .env.*
 !.env.example
 .tmp-*
+
+# VS Code extension: the packaged file, the VS Code downloaded to test it in, and
+# the licence its build copies in from the repository root.
+*.vsix
+.vscode-test
+vscode/LICENSE

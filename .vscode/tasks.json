@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build extension",
+      "type": "npm",
+      "script": "build",
+      "path": "vscode",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      // Rebuilds on save. Reload the extension window (Ctrl+R) to pick a change up.
+      "label": "watch extension",
+      "type": "npm",
+      "script": "watch",
+      "path": "vscode",
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

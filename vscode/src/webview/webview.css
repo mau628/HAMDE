@@ -1,0 +1,58 @@
+/*
+ * The webview's styles: the web app's tokens and live-preview rules, unchanged,
+ * plus the little that makes the editor sit in VS Code as if it belonged there.
+ */
+@import '../../../app/assets/css/tokens.css';
+@import '../../../app/assets/css/markdown.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  /* VS Code gives a webview's body side padding by default. */
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+/*
+ * The chrome follows the VS Code theme; the syntax palette stays HAMDE's own, in
+ * its light or dark variant (main.ts sets data-theme from the kind of theme).
+ *
+ * Set on <body> rather than :root so these win over the tokens whichever selector
+ * those were declared with, and only once VS Code has marked the body with its
+ * theme: a token pointing at a variable that does not exist would be no colour at
+ * all, not a fallback to the palette.
+ */
+body:is(.vscode-light, .vscode-dark, .vscode-high-contrast, .vscode-high-contrast-light) {
+  --color-bg: var(--vscode-editor-background);
+  --color-text: var(--vscode-editor-foreground);
+  --color-text-muted: var(--vscode-descriptionForeground);
+  --color-accent: var(--vscode-textLink-foreground);
+  --color-selection: var(--vscode-editor-selectionBackground);
+  --color-border: var(--vscode-editorWidget-border);
+  --color-code-bg: var(--vscode-textCodeBlock-background);
+  --color-warning: var(--vscode-errorForeground);
+  --font-mono: var(--vscode-editor-font-family);
+}
+
+#editor {
+  height: 100%;
+}
+
+/* The same switch as the web app's width button: let the text fill the editor. */
+body.hamde-wide .cm-editor .cm-content {
+  max-width: none;
+}

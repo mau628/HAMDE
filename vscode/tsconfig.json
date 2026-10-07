@@ -1,0 +1,22 @@
+{
+  // Deliberately not derived from Nuxt's generated config. The editor core under
+  // ../app/editor is compiled here with no Nuxt or Vue globals in scope, so an
+  // auto-import creeping into it is a type error in this project.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vscode"],
+    "paths": {
+      "~/*": ["../app/*"]
+    },
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}

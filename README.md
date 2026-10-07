@@ -84,18 +84,30 @@ welcome dialog is hidden (localStorage). See [docs/security.md](docs/security.md
 - Follow a link whose protocol is not http, https or mailto.
 - Rewrite parts of a file you did not edit — including its line endings.
 
+## VS Code extension
+
+The same editor is also a VS Code extension, in [`vscode/`](vscode). It opens `.md`
+files in the live preview and leaves the files to VS Code: saving, undo, and the
+explorer are VS Code's own. It bundles the editor from this repository directly, so
+the two never drift apart. See [docs/vscode-extension.md](docs/vscode-extension.md).
+
 ## Commands
 
-| Command                 | What it does                                                       |
-| ----------------------- | ------------------------------------------------------------------ |
-| `npm run dev`           | Development server                                                 |
-| `npm run generate`      | Static build into `.output/public`, then applies CSP script hashes |
-| `npm run serve:static`  | Serves `.output/public` exactly as a static host would             |
-| `npm run typecheck`     | `vue-tsc --noEmit`                                                 |
-| `npm run test`          | Unit tests (Vitest)                                                |
-| `npm run test:e2e`      | Builds, then runs browser tests (Playwright/Chromium)              |
-| `npm run check:offline` | Fails if the build references any remote origin                    |
-| `npm run verify`        | typecheck + unit tests + build + offline check                     |
+| Command                          | What it does                                                       |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `npm run dev`                    | Development server                                                 |
+| `npm run generate`               | Static build into `.output/public`, then applies CSP script hashes |
+| `npm run serve:static`           | Serves `.output/public` exactly as a static host would             |
+| `npm run typecheck`              | `vue-tsc --noEmit`, then `tsc` over the extension                  |
+| `npm run test`                   | Unit tests (Vitest)                                                |
+| `npm run test:e2e`               | Builds both, then runs browser tests (Playwright/Chromium)         |
+| `npm run check:offline`          | Fails if the build references any remote origin                    |
+| `npm run build:vscode`           | Production build of the extension into `vscode/dist`               |
+| `npm run check:offline:vscode`   | The same offline check, on the extension's bundle                  |
+| `npm run package -w vscode`      | Packs the extension into `vscode/hamde-vscode-<version>.vsix`      |
+| `npm run test:smoke -w vscode`   | Runs the extension's smoke tests inside a real VS Code             |
+| `npm run test:editing -w vscode` | Types, saves and undoes in a real VS Code window                   |
+| `npm run verify`                 | typecheck + unit tests + both builds + both offline checks         |
 
 ## Documentation
 
@@ -105,6 +117,8 @@ welcome dialog is hidden (localStorage). See [docs/security.md](docs/security.md
   including the ones that are compromises
 - [docs/dependencies.md](docs/dependencies.md) — why each dependency exists, what was
   rejected, and what the build actually weighs
+- [docs/vscode-extension.md](docs/vscode-extension.md) — how the VS Code extension
+  shares the editor, and how it keeps its copy of a document equal to VS Code's
 
 ## Status
 

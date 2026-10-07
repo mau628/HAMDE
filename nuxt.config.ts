@@ -110,7 +110,7 @@ export default defineNuxtConfig({
   // <AppShell />, not <LayoutAppShell />.
   components: [{ path: '~/components', pathPrefix: false }],
 
-  css: ['~/assets/css/main.css', '~/assets/css/markdown.css'],
+  css: ['~/assets/css/tokens.css', '~/assets/css/main.css', '~/assets/css/markdown.css'],
 
   typescript: {
     strict: true,

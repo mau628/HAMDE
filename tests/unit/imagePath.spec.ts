@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { hasScheme, isWorkspacePath, resolvePath } from '../../app/services/imageService'
+import { hasScheme, isLocalPath, isWorkspacePath, resolvePath } from '../../app/services/imagePath'
 
 /**
  * Which image sources the editor will load.
@@ -49,6 +49,27 @@ describe('paths that stay inside the folder', () => {
     '   ',
   ])('refuses %j, which leaves the folder the user granted', (source) => {
     expect(isWorkspacePath(source)).toBe(false)
+  })
+})
+
+describe('paths a host with its own boundary may still resolve', () => {
+  it.each(['../outside.png', 'images/../../outside.png', 'picture.png'])(
+    'treats %j as a local path, leaving the boundary to the host',
+    (source) => {
+      expect(isLocalPath(source)).toBe(true)
+    },
+  )
+
+  it.each([
+    'https://tracker.example/pixel.png',
+    'data:image/png;base64,iVBORw0KGgo=',
+    'file:///etc/passwd',
+    'C:\\Users\\someone\\picture.png',
+    '/absolute.png',
+    '\\\\server\\share\\picture.png',
+    '',
+  ])('still refuses %j', (source) => {
+    expect(isLocalPath(source)).toBe(false)
   })
 })
 

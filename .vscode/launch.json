@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Opens a second VS Code window with the extension loaded from vscode/dist.
+      // Ctrl+F5 runs it; F5 runs it with the debugger attached, for breakpoints.
+      "name": "Run HAMDE extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/vscode"],
+      "outFiles": ["${workspaceFolder}/vscode/dist/**/*.js"],
+      "preLaunchTask": "build extension"
+    }
+  ]
+}

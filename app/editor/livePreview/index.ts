@@ -1,5 +1,5 @@
 import { syntaxTree } from '@codemirror/language'
-import type { EditorState, Extension } from '@codemirror/state'
+import { Facet, type EditorState, type Extension } from '@codemirror/state'
 import type { SyntaxNode } from '@lezer/common'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 
@@ -86,6 +86,19 @@ const atomicHiddenRanges = EditorView.atomicRanges.of(
   (view) => view.plugin(previewPlugin)?.hidden ?? Decoration.none,
 )
 
+/** Opens a link target, and says whether it did. */
+export type LinkOpener = (href: string) => boolean
+
+/**
+ * How a link leaves the editor.
+ *
+ * A facet because "open" depends on where the editor runs: in a browser tab it is
+ * a new tab, and a host without `window.open` has to ask something else to do it.
+ */
+export const linkOpener = Facet.define<LinkOpener, LinkOpener>({
+  combine: (values) => values[0] ?? openExternal,
+})
+
 /**
  * Opens a link on Ctrl/Cmd+click.
  *
@@ -105,7 +118,7 @@ const linkClicks = EditorView.domEventHandlers({
     // Only claim the click once something was actually opened. A refused target —
     // a relative path, or `javascript:` — must still place the cursor, or the click
     // vanishes with no explanation.
-    if (!openExternal(href)) return false
+    if (!view.state.facet(linkOpener)(href)) return false
 
     event.preventDefault()
     return true

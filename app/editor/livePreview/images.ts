@@ -1,6 +1,8 @@
 import { Facet } from '@codemirror/state'
 import { WidgetType } from '@codemirror/view'
 
+import { isWorkspacePath } from '~/services/imagePath'
+
 /**
  * Images, rendered only when they come from the user's own folder.
  *
@@ -22,6 +24,20 @@ export type ImageResolver = (source: string) => Promise<string | null>
  */
 export const imageResolver = Facet.define<ImageResolver, ImageResolver | null>({
   combine: (values) => values[0] ?? null,
+})
+
+/** Decides whether a source is one the resolver should be asked about. */
+export type ImageSourceFilter = (source: string) => boolean
+
+/**
+ * Which sources are rendered at all; the rest stay as Markdown.
+ *
+ * The browser app can read only inside the folder it was granted, so the default
+ * refuses anything that leaves it. A host that enforces a boundary of its own
+ * supplies its own rule.
+ */
+export const imageSourceFilter = Facet.define<ImageSourceFilter, ImageSourceFilter>({
+  combine: (values) => values[0] ?? isWorkspacePath,
 })
 
 export class ImageWidget extends WidgetType {

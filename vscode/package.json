@@ -1,0 +1,106 @@
+{
+  "name": "hamde-vscode",
+  "displayName": "HAMDE — Markdown Live Preview",
+  "description": "Edit Markdown with an Obsidian-style live preview: the line you are on shows its syntax, everything else reads as the finished document. Nothing leaves your machine.",
+  "version": "0.1.0",
+  "publisher": "mau628",
+  "license": "MIT",
+  "homepage": "https://hamde.mau628.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mau628/hamde.git",
+    "directory": "vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/Mau628/hamde/issues"
+  },
+  "sponsor": {
+    "url": "https://buymeacoffee.com/mau628"
+  },
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "live preview",
+    "wysiwyg",
+    "obsidian",
+    "mermaid"
+  ],
+  "icon": "icon.png",
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "hamde.markdown",
+        "displayName": "HAMDE Live Preview",
+        "selector": [
+          {
+            "filenamePattern": "{file,vscode-remote}:/**/*.md"
+          },
+          {
+            "filenamePattern": "{file,vscode-remote}:/**/*.markdown"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "hamde.toggleEditorWidth",
+        "title": "Toggle Editor Width",
+        "category": "HAMDE",
+        "icon": "$(arrow-both)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "hamde.toggleEditorWidth",
+          "when": "activeCustomEditorId == 'hamde.markdown'"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "hamde.toggleEditorWidth",
+          "when": "activeCustomEditorId == 'hamde.markdown'",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "HAMDE",
+      "properties": {
+        "hamde.editor.wide": {
+          "type": "boolean",
+          "default": false,
+          "description": "Let the text fill the editor instead of keeping a narrow reading measure."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit -p .",
+    "package": "node build.mjs --production && vsce package --no-dependencies",
+    "test:smoke": "node test/runSmoke.mjs",
+    "test:editing": "node test/runEditing.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2"
+  }
+}

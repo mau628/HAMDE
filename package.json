@@ -4,6 +4,9 @@
   "private": true,
   "description": "Local-first Markdown editor with Obsidian-style live preview. Runs entirely in the browser.",
   "type": "module",
+  "workspaces": [
+    "vscode"
+  ],
   "engines": {
     "node": ">=24.11.0"
   },
@@ -12,12 +15,14 @@
     "generate": "nuxt generate && node scripts/apply-csp-hashes.mjs",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc --noEmit && npm run typecheck -w vscode",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run generate && playwright test",
+    "test:e2e": "npm run generate && npm run build:vscode && playwright test",
     "check:offline": "node scripts/check-no-remote-urls.mjs",
-    "verify": "npm run typecheck && npm run test && npm run generate && npm run check:offline",
+    "build:vscode": "npm run build -w vscode -- --production",
+    "check:offline:vscode": "node scripts/check-no-remote-urls.mjs vscode/dist",
+    "verify": "npm run typecheck && npm run test && npm run generate && npm run check:offline && npm run build:vscode && npm run check:offline:vscode",
     "serve:static": "node scripts/serve-static.mjs"
   },
   "devDependencies": {

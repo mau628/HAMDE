@@ -10,6 +10,8 @@
  * codebase keeps the property that no string is ever interpreted as HTML.
  */
 
+import { currentTheme } from '~/services/theme'
+
 export type DiagramResult =
   | { ok: true; svg: SVGElement }
   | { ok: false; message: string }

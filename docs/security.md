@@ -197,3 +197,84 @@ that no dialog appeared.
 
 Mermaid is bundled, never loaded from a CDN, and diagram source is never sent
 anywhere.
+
+## The VS Code extension
+
+The extension in `vscode/` shows the same editor in a VS Code webview. The threat
+model does not change — a Markdown file is untrusted, wherever it is opened — and
+the editor that enforces it is the same code, so everything above about embedded
+HTML, links, remote images and Mermaid holds there unchanged. What differs is the
+surroundings, and each difference is a decision recorded here.
+[vscode-extension.md](vscode-extension.md) describes how the extension works.
+
+**The webview has the web app's policy, with its own origin in place of `'self'`.**
+It is built in [`vscode/src/webviewHtml.ts`](../vscode/src/webviewHtml.ts), and a
+unit test asserts that no directive allows anything the site's policy does not.
+
+```
+default-src 'none'; script-src <webview origin>; style-src <webview origin> 'unsafe-inline';
+img-src <webview origin>; font-src <webview origin>; connect-src 'none';
+base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'
+```
+
+- `connect-src 'none'`: the webview cannot make a request. Nothing in a document
+  and no bug in the editor can send a note anywhere.
+- `script-src` names only the extension's own files. There is no inline script, so
+  no nonce and no hash is needed, and no `'unsafe-eval'`.
+- `img-src` names only the webview origin, which serves nothing but the files VS
+  Code was told it may serve. `data:` and `blob:` are not needed and not allowed.
+- `style-src 'unsafe-inline'` remains, for the reason it does on the site.
+
+**The webview is the less trusted side.** It is where untrusted Markdown is
+rendered, so the extension does not act on what it says without checking:
+
+- Every message is checked against the exact shape expected
+  ([`parseWebviewMessage`](../vscode/src/protocol.ts)) and dropped otherwise.
+- A link is checked with `isSafeHref` in the webview and **again** in the extension
+  before `vscode.env.openExternal` is called. The side that acts does not take the
+  other side's word for what is safe.
+- Anchors never navigate. A rendered table contains real anchors, and VS Code opens
+  any anchor clicked in a webview; the webview intercepts every anchor click so
+  that the editor's two rules hold — a plain click edits, and a target is checked
+  before it is opened.
+- An edit names the document it was made against and the shape it should produce.
+  If either does not hold, the webview's copy is replaced by the document as VS
+  Code has it.
+
+**Images: the boundary is the workspace folder.** The web app refuses a path that
+climbs with `..`, because the folder the user granted is all it may read. Here the
+workspace folder is the boundary, so a path may climb as long as it stays inside it
+([`resolveImagePath`](../vscode/src/imagePath.ts)). A file opened outside any
+workspace folder reads only from its own directory. What is still never loaded:
+
+| Source | Why |
+| --- | --- |
+| Anything with a scheme (`https:`, `data:`, `file:`, `C:`) | A remote image would tell its server which note is open. |
+| An absolute path, or one that resolves outside the folder | The boundary. A backslash counts as a separator, so `..\..\x.png` does not slip through as one odd segment. |
+| A file that is not an image, by extension | The webview must not become a way to read arbitrary files. |
+| A symbolic link | The folder check only sees the link's name, and a link can point anywhere. |
+
+There are two layers. The extension resolves and checks the path, and separately
+VS Code is given `localResourceRoots` — the extension's own bundle and that one
+folder — which it enforces itself, underneath whatever the extension decides.
+
+**Enforced the same way as the site.**
+
+- `npm run check:offline:vscode` scans the extension's bundle for remote URLs, with
+  the same script and the same allow-list as the site's build.
+- An end-to-end suite loads the built webview with its real policy and runs the
+  hostile document through it: nothing executes, nothing becomes an element, no
+  request leaves, and nothing is sent to the extension.
+- One test is there for a case worth knowing about. While rendering, Mermaid does
+  make the browser try to load an `<img>` written inside a diagram label. Nothing
+  is fetched, and the test asserts that — but what stops it is `img-src`, not the
+  renderer. The same is true on the site.
+
+**Workspace trust.** The extension declares support for untrusted workspaces. It
+runs nothing from the workspace and treats every document as hostile already, so a
+restricted mode would have nothing to restrict.
+
+**What is stored.** One setting, `hamde.editor.wide`, in VS Code's own settings.
+The cursor and scroll position of each open editor are kept in VS Code's webview
+state, so the editor comes back where it was after its tab was hidden. No note
+content is stored by the extension, and there is no telemetry.

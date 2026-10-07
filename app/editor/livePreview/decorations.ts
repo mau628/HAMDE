@@ -4,9 +4,8 @@ import { Decoration, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 
 import { replacedBlockRanges } from './blockPreview'
-import { isWorkspacePath } from '~/services/imageService'
 import { OPEN_LINK_HINT } from '~/services/links'
-import { imageResolver, ImageWidget } from './images'
+import { imageResolver, imageSourceFilter, ImageWidget } from './images'
 import { isRevealed, revealedSpans, type Span } from './reveal'
 import { isTaskChecked } from './task'
 import { BulletWidget, CheckboxWidget } from './widgets'
@@ -432,7 +431,7 @@ class DecorationBuilder {
     // A source we will not load stays as Markdown, so the reader can see the URL
     // and decide for themselves. Replacing it with "not found" would be a lie:
     // nothing was looked for.
-    if (!isWorkspacePath(source)) return
+    if (!this.state.facet(imageSourceFilter)(source)) return
 
     const marks = node.node.getChildren('LinkMark')
     const opening = marks.at(0)
