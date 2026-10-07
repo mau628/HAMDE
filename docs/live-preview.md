@@ -64,19 +64,22 @@ ones, no hidden range contains a `\n`.
 
 | Construct | Preview |
 | --- | --- |
-| Headings | Marker hidden, line styled by level. Size stays constant when revealed, so text does not jump as the cursor moves |
+| Headings | Marker hidden, line styled by level. Size stays constant when revealed, so text does not jump as the cursor moves. A title and a subtitle (levels 1 and 2) have a rule under them, as a rendered document has |
 | Bold, italic, strikethrough, inline code | Markers hidden, content styled |
 | Blockquote | `>` hidden per line, line indented with a rule |
 | Bullet list | Marker replaced with a bullet widget |
 | Ordered list | Number kept — it is content the user chose |
+| Any list | Indented by how deeply it is nested, with the marker hanging so that wrapped lines start where the item's text does |
 | Link | Text shown, `[`, `](url "title")` hidden; Ctrl/Cmd+click opens it. A link with no text, or one whose destination wraps onto another line, stays as source |
 | Autolink | Styled; a bracketed autolink (`<https://…>`) has its brackets hidden |
 | Reference link | Left intact: the label matters to the reader |
 | Table | Replaced by a rendered grid, with column alignment and the inline Markdown in each cell. Click a cell, or arrow into it, to edit the source. A table inside a blockquote or a list stays as source |
-| Horizontal rule | Line styled with a border, dashes kept |
-| Fenced code | Lines styled as a code block, with the language highlighted. The fence lines stay visible: hiding a whole line is a vertical layout change |
+| Horizontal rule | Drawn as a rule. Its characters show only on the line the cursor is on |
+| Fenced code | Lines styled as a code block, with the language highlighted. The fences, and the language name with them, show only while the cursor is somewhere in the block |
+| HTML block | A safe subset is drawn in place of its source: see [HTML](#html). Click it, or arrow into it, to edit the source |
+| Inline HTML | `<kbd>`, `<sub>`, `<sup>`, `<u>`, `<mark>` and the like style their content and have their tags hidden, as `**bold**` does. `<br>` breaks the line, and `<img>` is an image with a size |
 | Mermaid | Replaced by the rendered diagram. Click it, or arrow into it, to see the source |
-| Image | Rendered when the file is in the workspace, through a `blob:` URL. A remote or `data:` source stays as Markdown, and a path that climbs out of the folder is not resolved at all |
+| Image | Rendered when the file is in the workspace, through a `blob:` URL, or when the source is an `https:` address. Any other source (`http:`, `data:`) stays as Markdown, and a path that climbs out of the folder is not resolved at all |
 | Task list | `[ ]` becomes a real checkbox; clicking it changes one character in the document |
 
 ## Cursor motion
@@ -119,10 +122,32 @@ from under them.
   `FencedCode` node ends at the start of the following line, which is not part of
   the block.
 
+- **A hidden fence leaves its line behind.** Only the text of a fence line is
+  hidden; the line stays, as the top or bottom margin of the block. Removing a line
+  is a vertical layout change, which this layer may not make, and it would make the
+  block jump every time the cursor entered it. As it is, a block is exactly as tall
+  drawn as revealed.
+- **The fences are hidden as a pair, by block.** The cursor anywhere in the block
+  shows both, which is the rule every multi-line structure follows. Showing them
+  only while the cursor sat on a fence line would leave no way to see which
+  language a block is in while editing its code.
+- **A rule is an element as tall as its line**, with the stroke drawn across its
+  middle. A hairline element left most of the line as empty space, and a browser
+  asked what is at a point in empty space answers with the nearest text, which may
+  be on another line. The arrow keys then stepped over the rule instead of onto
+  it — but only in documents whose first line was a setext heading, because that
+  line is what CodeMirror measured to decide how far an arrow key moves.
+- **List indentation is by depth, not by the spaces in the source.** A few spaces
+  in a proportional font are almost nothing, so a nested list sat all but flush
+  with its parent. Each line of an item carries a class for its depth, and the
+  source indentation is left where it is, so nothing moves when a line is revealed.
+- **The `-` of a revealed list line is as wide as its bullet.** Otherwise the text
+  of every item would step sideways as the cursor passed over it.
+
 ## The block layer
 
-A second layer exists for structures replaced as a whole — a Mermaid diagram and a
-table. It is a state field, provided directly, because that is the only way to
+A second layer exists for structures replaced as a whole — a Mermaid diagram, a
+table and a block of HTML. It is a state field, provided directly, because that is the only way to
 introduce a block widget.
 
 What that costs and how it is paid:
@@ -158,8 +183,8 @@ Rendered diagrams are cached by their source, so moving the cursor around a
 document never re-renders one. An invalid diagram shows the parse error with the
 source underneath, and becomes a drawing again as soon as it parses.
 
-The SVG is the only markup this app parses from a string, and it does not go in
-through `innerHTML`: it is parsed with `DOMParser` and scrubbed of script
+The SVG is the only markup this app gives to a browser parser, and it does not go
+in through `innerHTML`: it is parsed with `DOMParser` and scrubbed of script
 elements, event-handler attributes and unsafe link targets first. See
 docs/security.md.
 
@@ -238,18 +263,65 @@ are pinned in `tests/unit/treeShape.spec.ts`:
   the parser's reading of the document and the rendered table shows it honestly —
   which can be surprising while typing a table at the end of a file.
 
+## HTML
+
+A Markdown document can contain HTML, and for a long time this editor showed it as
+text. A safe subset is now drawn. What "safe" means and how it is enforced is in
+[security.md](security.md#rendered-html); this is about how it behaves.
+
+**Blocks are replaced, like a table.** An `HTMLBlock` that is a whole, visible thing
+is replaced by its rendering. The cursor anywhere inside shows the source, a click
+puts the cursor there, and the arrow keys go into it. Two gestures are left to the
+browser: Ctrl/Cmd+click on a link, and a click on a `<summary>`, because a
+`<details>` that cannot be opened is only a picture of one.
+
+**Inline tags are decorated, like emphasis.** Markdown hands inline HTML over one
+tag at a time, with the text between an opening and a closing tag left as ordinary
+Markdown. So `<kbd>Ctrl</kbd>` works the way `**bold**` does: the content is styled
+where it stands and the two tags are hidden as syntax, together, until the cursor
+is on the line. A tag with no partner, or one this editor does not draw, stays as
+the text it is.
+
+**Markdown inside an HTML block is not Markdown.** That is CommonMark, not a choice
+made here: the content of an HTML block is HTML until a blank line ends it.
+
+### Known limitations
+
+- **An element split by a blank line is left as source.** CommonMark ends an HTML
+  block at a blank line, so the usual way of writing a `<details>` around several
+  paragraphs is three things: an opening block, Markdown, a closing block. Neither
+  half can be drawn. Written without blank lines inside, it is one block and it is.
+- **A block inside a list or a quote stays as source**, like a table there.
+- **Entities are a short list.** The common named ones and every numeric one are
+  decoded; an unknown name is shown as written.
+
+## Links to a heading
+
+`[Features](#features)` goes to the heading of that name, on Ctrl/Cmd+click like any
+other link, whether it is written as Markdown or as an `<a>`. A table of contents at
+the top of a README is made of these. The name of a heading is derived the way
+GitHub derives it (`headings.ts`), since that is where such links are written to
+work: lower case, punctuation dropped, spaces to hyphens, and `-1`, `-2` for
+repeats. The cursor goes with the view.
+
+A link to a file (`other.md#section`) is still not followed.
+
 ## Images
 
-An image renders only when it comes from the folder the user opened. The file is
-read through the directory handle they granted and handed to the browser as a
-`blob:` URL, which is the only image source the CSP allows.
+An image comes from one of two places. A relative path is read from the folder the
+user opened, through the directory handle they granted, and handed to the browser
+as a `blob:` URL. An `https:` address is loaded from where it says it is. What that
+second kind costs in privacy is in [security.md](security.md#remote-images).
+
+An image that is a link (`[![build](badge.svg)](https://ci.example)`, or `<a>`
+around an `<img>`) opens the link, never its own address. An image that cannot be
+loaded — offline, or gone — is replaced by its description.
 
 Three cases are refused, each for its own reason:
 
-- **A remote source** (`https://…`) is never fetched. Loading it would tell that
-  server which note is open and when. It stays as Markdown source, so the reader
-  can see the URL and decide for themselves — reporting it as "not found" would
-  be a lie, since nothing was looked for.
+- **Any other scheme** (`http:`, `data:`, `file:`) is not loaded. The image stays
+  as Markdown source, so the reader can see what it is — reporting it as "not
+  found" would be a lie, since nothing was looked for.
 - **A path that climbs out of the folder** (`../secret.png`) is not resolved. The
   user granted access to one directory and the editor stays inside it.
 - **A file that is not an image** is not turned into a `blob:` URL at all; the

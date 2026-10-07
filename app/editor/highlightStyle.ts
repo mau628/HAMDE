@@ -24,15 +24,25 @@ export const markdownHighlightStyle = HighlightStyle.define([
 
   // Code tokens, used once fenced blocks get their own parsers (M7).
   { tag: tags.keyword, color: 'var(--color-syntax-keyword)' },
-  { tag: tags.string, color: 'var(--color-syntax-string)' },
+  { tag: [tags.string, tags.special(tags.string)], color: 'var(--color-syntax-string)' },
   { tag: tags.comment, color: 'var(--color-text-muted)', fontStyle: 'italic' },
   { tag: tags.number, color: 'var(--color-syntax-number)' },
   { tag: tags.bool, color: 'var(--color-syntax-number)' },
   { tag: tags.null, color: 'var(--color-syntax-number)' },
+  { tag: tags.atom, color: 'var(--color-syntax-number)' },
+  // A shebang, a doctype, a decorator: about the code rather than part of it.
+  { tag: tags.meta, color: 'var(--color-text-muted)' },
   { tag: tags.operator, color: 'var(--color-syntax-mark)' },
   { tag: tags.punctuation, color: 'var(--color-syntax-mark)' },
   {
-    tag: [tags.function(tags.variableName), tags.definition(tags.variableName)],
+    // `standard` is a name the language itself provides. In a shell snippet that
+    // is the command (`npm`, `git`, `echo`), which is most of what there is to
+    // colour: without it a block of shell commands looked like plain text.
+    tag: [
+      tags.function(tags.variableName),
+      tags.definition(tags.variableName),
+      tags.standard(tags.variableName),
+    ],
     color: 'var(--color-syntax-function)',
   },
   { tag: [tags.typeName, tags.className], color: 'var(--color-syntax-type)' },

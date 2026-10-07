@@ -23,7 +23,7 @@ committed; `npm audit` runs in CI.
 | `@codemirror/commands` | History and default keybindings. |
 | `mermaid` | Diagram rendering. Bundled locally, never from a CDN, and imported dynamically: ~1.5 MB that a document without a diagram never downloads. |
 | `@codemirror/lang-javascript`, `-json`, `-html`, `-css`, `-sql`, `-xml`, `-yaml` | Grammars for fenced code blocks, each imported dynamically so it costs nothing until a document uses it. |
-| `@codemirror/legacy-modes` | bash (`shell`), PowerShell and C# (`clike`), for which no Lezer grammar exists. Wrapped in `StreamLanguage`. |
+| `@codemirror/legacy-modes` | bash (`shell`), INI (`properties`), PowerShell and C# (`clike`), for which no Lezer grammar exists. Wrapped in `StreamLanguage`. |
 
 ## The VS Code extension
 
@@ -71,8 +71,10 @@ ask for them or not; `markdown({ htmlTagLanguage })` cannot undo the top-level i
 
 Two consequences:
 
-- Highlighting embedded HTML is free, and consistent with our rule that embedded HTML
-  is shown as text rather than rendered.
+- Highlighting embedded HTML is free.
+- So is reading it. The safe subset of HTML that is rendered is parsed with this
+  same grammar (`htmlLanguage.parser`), so drawing HTML added no parser and no
+  sanitising library; see [security.md](security.md).
 - In M7, `javascript`, `typescript`, `html` and `css` cost nothing extra, because their
   grammars are already loaded. Lazy loading only matters for json, sql, xml, yaml and
   the `legacy-modes` parsers (bash, powershell, csharp).

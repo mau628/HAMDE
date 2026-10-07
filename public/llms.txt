@@ -1,13 +1,13 @@
 # HAMDE — Here's Another Markdown Editor
 
-> Free, open-source Markdown editor with Obsidian-style live preview. It runs entirely in the browser and edits the .md files in a folder on the user's own disk. No backend, no account, no upload, no telemetry: the app makes no network request after the page loads.
+> Free, open-source Markdown editor with Obsidian-style live preview. It runs entirely in the browser and edits the .md files in a folder on the user's own disk. No backend, no account, no upload, no telemetry: after the page loads, the only network request it makes is for an image that a document links to on the web.
 
 ## What it does
 
 - Live preview: Markdown renders in place; only the line under the cursor shows its syntax.
 - Opens a local folder (File System Access API), shows a file tree, edits and autosaves files directly on disk.
 - Detects external changes to a file and offers conflict resolution.
-- Supports tables, task lists, syntax-highlighted code blocks, Mermaid diagrams and local images.
+- Supports tables, task lists, syntax-highlighted code blocks, Mermaid diagrams, a safe subset of HTML, and images from the local folder or the web.
 - Light and dark themes; works offline.
 
 ## Requirements

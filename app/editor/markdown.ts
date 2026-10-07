@@ -22,7 +22,8 @@ export function createMarkdownSupport(): LanguageSupport {
     // Enter continues lists and Backspace deletes list markup — behaviour users
     // expect from a Markdown editor, and already implemented upstream.
     addKeymap: true,
-    // We never complete HTML tags: embedded HTML is displayed as text, not authored.
+    // We never complete HTML tags: this is an editor for Markdown, and the HTML in
+    // a document is the occasional tag, not something authored here.
     completeHTMLTags: false,
   })
 }

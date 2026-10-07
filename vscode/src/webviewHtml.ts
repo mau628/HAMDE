@@ -5,12 +5,12 @@
  * place of 'self'. It is not weaker anywhere:
  *
  * - `default-src 'none'`, so a forgotten directive fails closed.
- * - `connect-src 'none'`: the webview can make no request at all. Nothing in a
- *   document, and no bug in the editor, can send a note anywhere.
+ * - `connect-src 'none'`: no script can make a request. Nothing in a document, and
+ *   no bug in the editor, can send a note anywhere.
  * - `script-src` names only the extension's own files. No inline script, no eval.
- * - `img-src` names only the webview origin, which serves files VS Code has been
- *   told it may serve (`localResourceRoots`). No remote host, so a remote image in
- *   a document cannot be fetched even if the editor tried.
+ * - `img-src` names the webview origin, which serves files VS Code has been told
+ *   it may serve (`localResourceRoots`), and `https:`, for an image a document
+ *   points to on the web. That is the one request made on a document's behalf.
  * - `style-src` needs 'unsafe-inline' for the reason the web app does: CodeMirror
  *   injects a <style> element, and Mermaid inlines styles in its SVG. See
  *   docs/security.md.
@@ -24,7 +24,7 @@ export function webviewCsp(cspSource: string): string {
     'default-src': "'none'",
     'script-src': cspSource,
     'style-src': `${cspSource} 'unsafe-inline'`,
-    'img-src': cspSource,
+    'img-src': `${cspSource} https:`,
     'font-src': cspSource,
     'connect-src': "'none'",
     'base-uri': "'none'",
@@ -52,6 +52,7 @@ export function webviewHtml({ cspSource, scriptUri, styleUri }: WebviewPage): st
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${attribute(webviewCsp(cspSource))}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <link rel="stylesheet" href="${attribute(styleUri)}">
 </head>
 <body>

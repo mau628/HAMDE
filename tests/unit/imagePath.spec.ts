@@ -1,15 +1,57 @@
 import { describe, expect, it } from 'vitest'
 
-import { hasScheme, isLocalPath, isWorkspacePath, resolvePath } from '../../app/services/imagePath'
+import {
+  hasScheme,
+  isLocalPath,
+  isRemoteImage,
+  isWorkspacePath,
+  resolvePath,
+} from '../../app/services/imagePath'
 
 /**
- * Which image sources the editor will load.
+ * Which image sources the editor will load, and from where.
  *
- * This is a privacy boundary rather than a convenience: fetching a remote image
- * tells that server which note is open and when.
+ * There are two places an image may come from: the user's own folder, and an
+ * `https:` address. Everything here is about keeping those two apart, and about
+ * nothing else being either.
  */
 
-describe('sources that are never loaded', () => {
+describe('images on the web', () => {
+  it.each([
+    'https://img.shields.io/badge/a-b-blue',
+    'https://raw.githubusercontent.com/owner/repo/main/logo.png',
+    '  https://example.com/a.png  ',
+    'HTTPS://EXAMPLE.COM/a.png',
+    'https://example.com/a.png?style=for-the-badge&logo=x#frag',
+  ])('loads %j', (source) => {
+    expect(isRemoteImage(source)).toBe(true)
+  })
+
+  it.each([
+    ['plain http', 'http://example.com/a.png'],
+    ['a protocol-relative address', '//example.com/a.png'],
+    ['a data URI', 'data:image/png;base64,iVBORw0KGgo='],
+    ['a blob', 'blob:https://example.com/uuid'],
+    ['a file', 'file:///etc/passwd'],
+    ['script', 'javascript:alert(1)'],
+    ['a scheme that only looks like it', 'https:example.com/a.png'],
+    ['an address with nothing in it', 'https://'],
+    ['a relative path', 'images/a.png'],
+    ['a path that mentions one', 'images/https://example.com/a.png'],
+    ['nothing', ''],
+  ])('does not load %s', (_name, source) => {
+    expect(isRemoteImage(source)).toBe(false)
+  })
+
+  it('is never also a path in the workspace', () => {
+    // One source, one place to load it from: the two rules cannot both say yes.
+    for (const source of ['https://example.com/a.png', 'images/a.png', '../a.png', 'data:x']) {
+      expect(isRemoteImage(source) && isLocalPath(source)).toBe(false)
+    }
+  })
+})
+
+describe('sources that are not a path in the folder', () => {
   it.each([
     'https://tracker.example/pixel.png',
     'http://tracker.example/pixel.png',

@@ -39,8 +39,8 @@ test('lists directories before files', async ({ page }) => {
   const names = await page.locator('.explorer__tree > .node > .node__row').allInnerTexts()
 
   expect(names.map((name) => name.replace(/\s+/g, ' ').trim())).toEqual([
-    '▸ Personal',
-    '▸ Projects',
+    'Personal',
+    'Projects',
     'README.md',
   ])
 })

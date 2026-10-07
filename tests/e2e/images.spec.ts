@@ -3,9 +3,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { installFakePicker, TINY_PNG } from './support/installFakePicker'
 
 /**
- * Images are rendered only when they come from the folder the user opened.
- * Everything else stays as Markdown source — see tests/e2e/security.spec.ts for
- * why a remote one is never fetched.
+ * Images from the folder the user opened: which paths are read, and which are not.
+ * An image on the web is loaded from its `https:` address instead, and what that
+ * may and may not disclose is in tests/e2e/security.spec.ts.
  */
 
 const FOLDER = {

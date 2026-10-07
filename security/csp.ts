@@ -16,10 +16,11 @@ const base: Record<string, string> = {
   // <style> element and assigns textContent. It accepts a nonce, but a static site
   // cannot mint per-request nonces. See docs/security.md.
   'style-src': "'self' 'unsafe-inline'",
-  // blob: is required to render images from the user's local folder.
-  // Remote image hosts are intentionally NOT allowed: loading them would leak
-  // which note the user is reading.
-  'img-src': "'self' data: blob:",
+  // blob: is how an image from the user's local folder is shown. https: is for an
+  // image a document points to on the web, which is the one kind of request this
+  // app makes on a document's behalf; see docs/security.md for what that costs.
+  // Plain http: is deliberately absent.
+  'img-src': "'self' data: blob: https:",
   'font-src': "'self'",
   'base-uri': "'none'",
   'form-action': "'none'",

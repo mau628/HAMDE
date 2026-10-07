@@ -25,7 +25,7 @@ test('loads the document and applies syntax highlighting', async ({ page }) => {
 
   await openEditor(page)
 
-  await expect(page.locator('.cm-content')).toContainText('A local Markdown editor')
+  await expect(page.locator('.cm-content')).toContainText("Here's Another Markdown Editor.")
   // CodeMirror injects its stylesheet at runtime; this asserts the CSP tolerates it.
   expect(violations).toEqual([])
   // Highlighting comes from the syntax tree, so any styled span proves the parser ran.
@@ -69,7 +69,10 @@ test('continues a list when Enter is pressed', async ({ page }) => {
 
 test('keeps the Markdown source in the document, revealed on the cursor line', async ({ page }) => {
   await openEditor(page)
-  await page.keyboard.press('ControlOrMeta+End')
+  // On the title, which keeps the line under test both unrevealed and on screen:
+  // the welcome document is longer than the window, and only what is on screen
+  // is in the DOM.
+  await page.keyboard.press('ControlOrMeta+Home')
 
   // Rendered: the syntax is hidden, not removed.
   await expect.poll(() => editorText(page)).not.toContain('**bold**')

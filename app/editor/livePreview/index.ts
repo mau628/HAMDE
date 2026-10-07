@@ -1,13 +1,17 @@
 import { syntaxTree } from '@codemirror/language'
-import { Facet, type EditorState, type Extension } from '@codemirror/state'
+import type { EditorState, Extension } from '@codemirror/state'
 import type { SyntaxNode } from '@lezer/common'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 
-import { openExternal } from '~/services/links'
 import { blockPreview } from './blockPreview'
 import { buildPreviewDecorations } from './decorations'
+import { htmlRenderer } from './html'
+import { parseInlineTag } from './htmlModel'
+import { followLink } from './linkFollow'
 import { mermaidRenderer } from './mermaid'
 import { tableRenderer } from './table'
+
+export { followLink, linkOpener, type LinkOpener } from './linkFollow'
 
 /**
  * Obsidian-style live preview.
@@ -31,14 +35,15 @@ import { tableRenderer } from './table'
  *   inline decorations want — a 50,000-line document costs the same as a short one.
  *   Nothing here may replace a line break.
  * - **Block** (`blockPreview.ts`): a state field, provided directly, for structures
- *   replaced as a whole — a rendered Mermaid diagram and a rendered table.
+ *   replaced as a whole — a rendered Mermaid diagram, a rendered table, and a
+ *   rendered block of HTML.
  *
  * The inline layer skips whatever the block layer has replaced, so the two never
  * decorate the same text.
  */
 export function livePreview(): Extension {
   return [
-    blockPreview([mermaidRenderer, tableRenderer]),
+    blockPreview([mermaidRenderer, tableRenderer, htmlRenderer]),
     previewPlugin,
     atomicHiddenRanges,
     linkClicks,
@@ -86,19 +91,6 @@ const atomicHiddenRanges = EditorView.atomicRanges.of(
   (view) => view.plugin(previewPlugin)?.hidden ?? Decoration.none,
 )
 
-/** Opens a link target, and says whether it did. */
-export type LinkOpener = (href: string) => boolean
-
-/**
- * How a link leaves the editor.
- *
- * A facet because "open" depends on where the editor runs: in a browser tab it is
- * a new tab, and a host without `window.open` has to ask something else to do it.
- */
-export const linkOpener = Facet.define<LinkOpener, LinkOpener>({
-  combine: (values) => values[0] ?? openExternal,
-})
-
 /**
  * Opens a link on Ctrl/Cmd+click.
  *
@@ -118,7 +110,7 @@ const linkClicks = EditorView.domEventHandlers({
     // Only claim the click once something was actually opened. A refused target —
     // a relative path, or `javascript:` — must still place the cursor, or the click
     // vanishes with no explanation.
-    if (!view.state.facet(linkOpener)(href)) return false
+    if (!followLink(view, href)) return false
 
     event.preventDefault()
     return true
@@ -131,10 +123,11 @@ const linkClicks = EditorView.domEventHandlers({
  * Exported for testing: this is the function that decides what a click may open, so
  * it is worth exercising directly rather than only through the browser.
  *
- * The whole ancestor chain is walked before any URL is returned, because a `URL`
- * node inside an image must yield nothing. Returning early on the first `URL` meant
- * `![alt](https://tracker.example/x.png)` was a clickable link to an image host —
- * the one thing the preview is meant never to reach on its own.
+ * The whole ancestor chain is walked before any URL is returned, because the
+ * address of an image is not a link: an image is something to look at, and
+ * clicking it must not open the place it was loaded from. What an image *is* a
+ * link to is whatever link it sits inside, which is how a badge is written:
+ * `[![build](badge.svg)](https://ci.example)` goes to the CI, not to the badge.
  */
 export function linkTargetAt(state: EditorState, position: number): string | null {
   let candidate: string | null = null
@@ -144,8 +137,11 @@ export function linkTargetAt(state: EditorState, position: number): string | nul
     node !== null;
     node = node.parent
   ) {
-    // An image anywhere up the chain disqualifies the position entirely.
-    if (node.name === 'Image') return null
+    // Whatever was found on the way up to an image belongs to the image.
+    if (node.name === 'Image') {
+      candidate = null
+      continue
+    }
 
     if (node.name === 'Link') {
       const url = node.getChild('URL')
@@ -158,7 +154,37 @@ export function linkTargetAt(state: EditorState, position: number): string | nul
     }
   }
 
-  return candidate
+  return candidate ?? htmlLinkTargetAt(state, position)
+}
+
+/**
+ * The `href` of the inline `<a>` a position is inside, if there is one.
+ *
+ * An inline anchor is not a node of its own: Markdown hands over `<a href="…">` and
+ * `</a>` as two tags with ordinary text between them. So the tags on the line are
+ * read in order, and whichever anchor is still open at the position is the answer.
+ * The only `href` ever recorded for a tag is one that passed `isSafeHref`, or one
+ * that points at a heading of this document.
+ */
+function htmlLinkTargetAt(state: EditorState, position: number): string | null {
+  const line = state.doc.lineAt(position)
+  const open: string[] = []
+
+  syntaxTree(state).iterate({
+    from: line.from,
+    to: position,
+    enter: (node) => {
+      if (node.name !== 'HTMLTag' || node.from < line.from || node.to > position) return
+
+      const tag = parseInlineTag(state.doc.sliceString(node.from, node.to))
+      if (tag === null || tag.name !== 'a') return
+
+      if (tag.kind === 'open') open.push(tag.attributes.href ?? '')
+      else if (tag.kind === 'close') open.pop()
+    },
+  })
+
+  return open.at(-1) || null
 }
 
 /**

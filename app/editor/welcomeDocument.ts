@@ -50,4 +50,13 @@ graph TD
     A[Open folder] --> B[Edit note]
     B --> C[Autosave]
 \`\`\`
+
+---
+
+## HTML
+
+Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save, and H<sub>2</sub>O is water.
+
+<details><summary>What is drawn</summary>A safe subset of HTML. Scripts, styles and
+event handlers never reach the page.</details>
 `

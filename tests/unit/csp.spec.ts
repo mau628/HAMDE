@@ -15,7 +15,7 @@ describe('content security policy', () => {
     expect(directives(productionCsp).get('default-src')).toBe("'none'")
   })
 
-  it('forbids all network access in production', () => {
+  it('lets no script make a request in production', () => {
     expect(directives(productionCsp).get('connect-src')).toBe("'none'")
   })
 
@@ -44,10 +44,25 @@ describe('content security policy', () => {
     }
   })
 
-  it('allows local images via blob: but no remote image hosts', () => {
-    const imgSrc = directives(productionCsp).get('img-src')!
+  it('allows local images via blob: and remote ones over https only', () => {
+    const imgSrc = directives(productionCsp).get('img-src')!.split(' ')
     expect(imgSrc).toContain('blob:')
-    expect(imgSrc).not.toContain('https:')
+    expect(imgSrc).toContain('https:')
+    expect(imgSrc).not.toContain('http:')
+    expect(imgSrc).not.toContain('*')
+  })
+
+  it('lets a document load an image and nothing else', () => {
+    // An image is the one thing a document may fetch. Everything that could carry
+    // behaviour, or carry data out, is still closed.
+    const d = directives(productionCsp)
+    for (const name of ['default-src', 'connect-src', 'frame-src', 'object-src', 'form-action']) {
+      expect(d.get(name), name).toBe("'none'")
+    }
+    for (const name of ['script-src', 'font-src', 'worker-src', 'manifest-src']) {
+      expect(d.get(name), name).toBe("'self'")
+    }
+    expect(d.get('style-src')).not.toContain('https:')
   })
 
   it('blocks plugins, framing and form submission', () => {

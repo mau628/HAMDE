@@ -9,9 +9,10 @@ import { isLocalPath } from '~/services/imagePath'
  * the document sits in. `docs/guide.md` pointing at `../assets/diagram.png` is the
  * ordinary layout of a repository.
  *
- * What still never loads: anything with a scheme (a remote image would tell its
- * server which note is open), an absolute path, a file that is not an image, and
- * anything that resolves outside `rootPath`.
+ * What is never handed over: anything with a scheme, an absolute path, a file that
+ * is not an image, and anything that resolves outside `rootPath`. An `https:` image
+ * is among them only because it is not a file: the webview loads those itself, and
+ * the extension is never asked about one.
  */
 export function resolveImagePath(
   documentPath: string,

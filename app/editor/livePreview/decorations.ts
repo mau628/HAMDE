@@ -1,14 +1,15 @@
 import { syntaxTree } from '@codemirror/language'
 import type { EditorState, Range } from '@codemirror/state'
 import { Decoration, type DecorationSet } from '@codemirror/view'
-import type { SyntaxNodeRef } from '@lezer/common'
+import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common'
 
 import { replacedBlockRanges } from './blockPreview'
 import { OPEN_LINK_HINT } from '~/services/links'
-import { imageResolver, imageSourceFilter, ImageWidget } from './images'
+import { parseInlineTag, type InlineTag } from './htmlModel'
+import { imageLoader, ImageWidget } from './images'
 import { isRevealed, revealedSpans, type Span } from './reveal'
 import { isTaskChecked } from './task'
-import { BulletWidget, CheckboxWidget } from './widgets'
+import { BreakWidget, BulletWidget, CheckboxWidget, RuleWidget } from './widgets'
 
 /**
  * Turns the Markdown syntax tree into decorations.
@@ -37,6 +38,10 @@ const HIDDEN = Decoration.replace({})
 
 const BULLET = Decoration.replace({ widget: new BulletWidget() })
 
+const RULE = Decoration.replace({ widget: new RuleWidget() })
+
+const BREAK = Decoration.replace({ widget: new BreakWidget() })
+
 /** Two instances are enough: a checkbox differs only by its state. */
 const CHECKBOX = {
   checked: Decoration.replace({ widget: new CheckboxWidget(true) }),
@@ -51,19 +56,62 @@ const MARK = {
   link: Decoration.mark({ class: 'cm-md-link', attributes: { title: OPEN_LINK_HINT } }),
   url: Decoration.mark({ class: 'cm-md-url', attributes: { title: OPEN_LINK_HINT } }),
   listMark: Decoration.mark({ class: 'cm-md-list-mark' }),
+  /** The `-` of a bullet on a revealed line, as wide as the bullet it stands for. */
+  bulletMark: Decoration.mark({ class: 'cm-md-list-mark cm-md-bullet-mark' }),
   punctuation: Decoration.mark({ class: 'cm-md-punctuation' }),
   taskDone: Decoration.mark({ class: 'cm-md-task-done' }),
 } as const
+
+/**
+ * How many levels of list nesting get their own indentation. Deeper items are
+ * indented like the deepest of these, which is further than a page can show anyway.
+ */
+const LIST_DEPTHS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 const LINE = {
   heading: [1, 2, 3, 4, 5, 6].map((level) =>
     Decoration.line({ class: 'cm-md-heading cm-md-h' + level }),
   ),
+  // A setext heading already has its underline in the text, so it is told apart
+  // from one that gets a rule drawn under it.
+  setext: [1, 2].map((level) =>
+    Decoration.line({ class: 'cm-md-heading cm-md-h' + level + ' cm-md-setext' }),
+  ),
   quote: Decoration.line({ class: 'cm-md-quote' }),
   code: Decoration.line({ class: 'cm-md-code-line' }),
+  codeFirst: Decoration.line({ class: 'cm-md-code-first' }),
+  codeLast: Decoration.line({ class: 'cm-md-code-last' }),
   table: Decoration.line({ class: 'cm-md-table-line' }),
   rule: Decoration.line({ class: 'cm-md-rule' }),
+  /** The line a list item starts on: indented by depth, with its marker hanging. */
+  listItem: LIST_DEPTHS.map((depth) =>
+    Decoration.line({ class: 'cm-md-list cm-md-list-' + depth + ' cm-md-list-item' }),
+  ),
+  /** Any other line of the item, indented to match. */
+  listRest: LIST_DEPTHS.map((depth) =>
+    Decoration.line({ class: 'cm-md-list cm-md-list-' + depth }),
+  ),
 } as const
+
+/** Inline HTML that is another way of writing something Markdown already has. */
+const HTML_AS_MARKDOWN: Readonly<Record<string, Decoration>> = {
+  b: MARK.strong,
+  strong: MARK.strong,
+  i: MARK.emphasis,
+  em: MARK.emphasis,
+  s: MARK.strikethrough,
+  del: MARK.strikethrough,
+  strike: MARK.strikethrough,
+  code: MARK.inlineCode,
+}
+
+/** Inline HTML with no Markdown equivalent, drawn as the element it names. */
+const HTML_ELEMENTS = new Set([
+  'kbd', 'sub', 'sup', 'u', 'mark', 'small', 'ins', 'abbr', 'cite', 'q', 'var', 'samp', 'span',
+])
+
+/** How far along a paragraph a closing tag is looked for. */
+const MAX_TAG_DISTANCE = 400
 
 export interface PreviewDecorations {
   /** Everything: hidden syntax, inline styling and line styling. */
@@ -117,6 +165,7 @@ class DecorationBuilder {
 
     if (name.startsWith('ATXHeading')) return this.atxHeading(node, spans)
     if (name.startsWith('SetextHeading')) return this.setextHeading(node, range)
+    if (name === 'HTMLTag') return this.htmlTag(node, spans)
 
     switch (name) {
       case 'StrongEmphasis':
@@ -135,7 +184,7 @@ class DecorationBuilder {
       case 'QuoteMark':
         return this.quoteMark(node, spans)
       case 'ListItem':
-        return this.listItem(node, spans)
+        return this.listItem(node, spans, range)
       case 'Task':
         return this.task(node, spans)
       case 'Link':
@@ -147,6 +196,7 @@ class DecorationBuilder {
       case 'URL':
         return this.url(node)
       case 'FencedCode':
+        return this.fencedCode(node, spans, range)
       case 'CodeBlock':
         return this.eachLine(node, LINE.code, range)
       case 'Table':
@@ -154,7 +204,7 @@ class DecorationBuilder {
       case 'TableDelimiter':
         return this.mark(MARK.punctuation, node.from, node.to)
       case 'HorizontalRule':
-        return this.eachLine(node, LINE.rule, range)
+        return this.rule(node, spans, range)
       default:
         return
     }
@@ -223,7 +273,7 @@ class DecorationBuilder {
    * walked in full, and a node whose `to` sits exactly at a line start — an
    * unterminated fenced block, for instance — must not style the line after it.
    */
-  private eachLine(node: SyntaxNodeRef, decoration: Decoration, range: Span): void {
+  private eachLine(node: Span, decoration: Decoration, range: Span): void {
     const { doc } = this.state
     const from = Math.max(node.from, range.from)
     const to = Math.min(node.to, range.to)
@@ -278,7 +328,7 @@ class DecorationBuilder {
    */
   private setextHeading(node: SyntaxNodeRef, range: Span): void {
     const level = Number(node.name.slice('SetextHeading'.length))
-    const style = LINE.heading[level - 1]
+    const style = LINE.setext[level - 1]
     if (style === undefined) return
 
     const marker = node.node.getChild('HeaderMark')
@@ -330,19 +380,49 @@ class DecorationBuilder {
    * A bullet becomes a real bullet; an ordered marker keeps its number, because the
    * number is content the user chose.
    */
-  private listItem(node: SyntaxNodeRef, spans: readonly Span[]): void {
+  private listItem(node: SyntaxNodeRef, spans: readonly Span[], range: Span): void {
+    this.indentListItem(node, range)
+
     const marker = node.node.getChild('ListMark')
     if (marker === null) return
 
     const text = this.state.doc.sliceString(marker.from, marker.to)
     const ordered = /\d/.test(text)
 
-    if (ordered || isRevealed(spans, marker.from, marker.to)) {
-      this.mark(MARK.listMark, marker.from, marker.to)
-      return
+    if (ordered) return this.mark(MARK.listMark, marker.from, marker.to)
+    if (isRevealed(spans, marker.from, marker.to)) {
+      return this.mark(MARK.bulletMark, marker.from, marker.to)
     }
 
     this.replaceWithWidget(BULLET, marker.from, marker.to)
+  }
+
+  /**
+   * Indents every line of a list item by how deeply the item is nested.
+   *
+   * The indentation in the source cannot do this on its own. It is a few spaces,
+   * and in a proportional font a few spaces are almost nothing: a nested list sat
+   * all but flush with its parent, and a top-level list was not indented at all.
+   *
+   * An item's lines include those of the lists nested inside it, so a nested line
+   * is given a class by each of its ancestors. The stylesheet orders the depths so
+   * that the deepest wins, which is the one the line belongs to.
+   */
+  private indentListItem(node: SyntaxNodeRef, range: Span): void {
+    let depth = 0
+    for (let parent = node.node.parent; parent !== null; parent = parent.parent) {
+      if (parent.name === 'BulletList' || parent.name === 'OrderedList') depth += 1
+    }
+
+    const level = Math.min(Math.max(depth, 1), LIST_DEPTHS.length) - 1
+    const first = this.state.doc.lineAt(node.from)
+
+    if (first.from <= range.to && first.to >= range.from) {
+      this.line(LINE.listItem[level]!, first.from)
+    }
+    if (node.to > first.to) {
+      this.eachLine({ from: first.to + 1, to: node.to }, LINE.listRest[level]!, range)
+    }
   }
 
   /**
@@ -400,6 +480,124 @@ class DecorationBuilder {
     this.hide(closing.from, node.to)
   }
 
+  /**
+   * A fenced block: every line styled as code, and the fences hidden until the
+   * cursor is somewhere in the block.
+   *
+   * Only the text of a fence line is hidden. The line itself stays, as the top or
+   * bottom margin of the block: removing a line is a vertical layout change, which
+   * this layer may not make, and it would make the block jump when it is entered.
+   * The whole block is the unit, as for any multi-line structure — showing the
+   * fences only while the cursor sat on a fence would leave no way to see which
+   * language a block is in while editing the code.
+   */
+  private fencedCode(node: SyntaxNodeRef, spans: readonly Span[], range: Span): void {
+    this.eachLine(node, LINE.code, range)
+
+    const { doc } = this.state
+    const first = doc.lineAt(node.from)
+    const marks = node.node.getChildren('CodeMark')
+    const opening = marks.at(0)
+    const closing = marks.at(1)
+
+    if (first.from <= range.to && first.to >= range.from) this.line(LINE.codeFirst, first.from)
+    if (closing !== undefined) {
+      const last = doc.lineAt(closing.from)
+      if (last.from <= range.to && last.to >= range.from) this.line(LINE.codeLast, last.from)
+    }
+
+    if (isRevealed(spans, node.from, node.to)) return
+
+    // To the end of the line, which takes the language name with the opening fence.
+    if (opening !== undefined) this.hide(opening.from, first.to)
+    if (closing !== undefined) this.hide(closing.from, doc.lineAt(closing.from).to)
+  }
+
+  /**
+   * `---` — drawn as a rule, and shown as the characters it is written with only
+   * on the line the cursor is on.
+   */
+  private rule(node: SyntaxNodeRef, spans: readonly Span[], range: Span): void {
+    this.eachLine(node, LINE.rule, range)
+
+    if (isRevealed(spans, node.from, node.to)) return
+
+    this.replaceWithWidget(RULE, node.from, node.to)
+  }
+
+  /**
+   * Inline HTML: `<kbd>Ctrl</kbd>`, `<sub>2</sub>`, `<br>`, `<img width="…">`.
+   *
+   * Markdown hands these over one tag at a time, with the text between an opening
+   * and a closing tag left as ordinary Markdown. So this works like `**bold**`:
+   * the content is styled where it stands, and the tags are hidden as syntax.
+   * Nothing from the document is turned into markup. The element drawn is one this
+   * file names, and the only attributes used are the ones `parseInlineTag` checked.
+   *
+   * A tag this editor does not draw, one with no partner, and one that wraps onto
+   * another line all stay as the text they are.
+   */
+  private htmlTag(node: SyntaxNodeRef, spans: readonly Span[]): void {
+    if (this.state.doc.lineAt(node.from).to < node.to) return
+
+    const tag = parseInlineTag(this.state.doc.sliceString(node.from, node.to))
+    if (tag === null || tag.kind === 'close') return
+    if (tag.kind === 'void') return this.voidHtmlTag(node, tag, spans)
+
+    const style = htmlStyle(tag)
+    if (style === null) return
+
+    const closing = this.closingTag(node.node, tag.name)
+    if (closing === null) return
+
+    this.mark(style, node.to, closing.from)
+
+    // The element is the unit: revealing one tag of a pair would read as a typo.
+    if (isRevealed(spans, node.from, closing.to)) return
+
+    this.hide(node.from, node.to)
+    this.hide(closing.from, closing.to)
+  }
+
+  private voidHtmlTag(node: SyntaxNodeRef, tag: InlineTag, spans: readonly Span[]): void {
+    if (isRevealed(spans, node.from, node.to)) return
+
+    if (tag.name === 'br') return this.replaceWithWidget(BREAK, node.from, node.to)
+    if (tag.name !== 'img') return
+
+    // The same question a Markdown image is asked, with the same answer.
+    const { src, alt = '', width, height } = tag.attributes
+    const load = src === undefined ? null : imageLoader(this.state)(src)
+    if (src === undefined || load === null) return
+
+    this.replaceWithWidget(
+      Decoration.replace({ widget: new ImageWidget(src, alt, load, { width, height }) }),
+      node.from,
+      node.to,
+    )
+  }
+
+  /** The tag that closes `open`, allowing for the same element nested inside it. */
+  private closingTag(open: SyntaxNode, name: string): SyntaxNode | null {
+    let nested = 0
+    let distance = 0
+
+    for (let next = open.nextSibling; next !== null; next = next.nextSibling) {
+      distance += 1
+      if (distance > MAX_TAG_DISTANCE) return null
+      if (next.name !== 'HTMLTag') continue
+
+      const tag = parseInlineTag(this.state.doc.sliceString(next.from, next.to))
+      if (tag === null || tag.name !== name) continue
+
+      if (tag.kind === 'open') nested += 1
+      else if (tag.kind === 'close' && nested === 0) return next
+      else if (tag.kind === 'close') nested -= 1
+    }
+
+    return null
+  }
+
   /** `<https://example.com>` — shows the URL, hides the angle brackets. */
   private autolink(node: SyntaxNodeRef, spans: readonly Span[]): void {
     this.mark(MARK.url, node.from, node.to)
@@ -412,15 +610,12 @@ class DecorationBuilder {
   }
 
   /**
-   * `![alt](picture.png)` — rendered when the file is in the workspace.
-   *
-   * A remote source is left as Markdown source. Loading it would tell that
-   * server which note is open, and the CSP would refuse it anyway.
+   * `![alt](picture.png)` — rendered when the file is in the workspace, or when
+   * the source is an `https:` address.
    */
   private image(node: SyntaxNodeRef, spans: readonly Span[]): void {
-    const resolve = this.state.facet(imageResolver)
     const url = node.node.getChild('URL')
-    if (resolve === null || url === null) return
+    if (url === null) return
 
     if (isRevealed(spans, node.from, node.to)) return
     // A replacement may not cover a line break, so an image whose source wraps
@@ -428,10 +623,10 @@ class DecorationBuilder {
     if (this.state.doc.lineAt(node.from).to < node.to) return
 
     const source = this.state.doc.sliceString(url.from, url.to)
-    // A source we will not load stays as Markdown, so the reader can see the URL
-    // and decide for themselves. Replacing it with "not found" would be a lie:
-    // nothing was looked for.
-    if (!this.state.facet(imageSourceFilter)(source)) return
+    // A source we will not load stays as Markdown, so the reader can see what it
+    // is. Replacing it with "not found" would be a lie: nothing was looked for.
+    const load = imageLoader(this.state)(source)
+    if (load === null) return
 
     const marks = node.node.getChildren('LinkMark')
     const opening = marks.at(0)
@@ -442,7 +637,7 @@ class DecorationBuilder {
         : this.state.doc.sliceString(opening.to, closing.from)
 
     this.replaceWithWidget(
-      Decoration.replace({ widget: new ImageWidget(source, alt, resolve) }),
+      Decoration.replace({ widget: new ImageWidget(source, alt, load) }),
       node.from,
       node.to,
     )
@@ -477,4 +672,20 @@ class DecorationBuilder {
     while (start > limit && this.state.doc.sliceString(start - 1, start) === ' ') start -= 1
     return start
   }
+}
+
+/** How the content of an inline HTML element is drawn, or null if it is not. */
+function htmlStyle(tag: InlineTag): Decoration | null {
+  if (tag.name === 'a') return tag.attributes.href === undefined ? null : MARK.link
+
+  const known = HTML_AS_MARKDOWN[tag.name]
+  if (known !== undefined) return known
+  if (!HTML_ELEMENTS.has(tag.name)) return null
+
+  const { title } = tag.attributes
+  return Decoration.mark({
+    tagName: tag.name,
+    class: 'cm-md-html-' + tag.name,
+    ...(title === undefined ? {} : { attributes: { title } }),
+  })
 }

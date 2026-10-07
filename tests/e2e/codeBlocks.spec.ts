@@ -10,6 +10,7 @@ const SNIPPETS: Array<[info: string, code: string]> = [
   ['html', '<p class="x">hi</p>'],
   ['css', '.card { color: red; }'],
   ['bash', 'echo "hello"'],
+  ['ini', 'name = value'],
   ['powershell', 'Write-Output "hello"'],
   ['csharp', 'var greeting = "hello";'],
   ['sql', 'select name from users'],
@@ -77,6 +78,27 @@ test('a language is only downloaded when a document uses it', async ({ page }) =
 
   // Whatever it fetched came from our own origin, never a CDN.
   for (const url of requested) expect(new URL(url).hostname).toBe('localhost')
+})
+
+test('hides the fences until the cursor is in the block', async ({ page }) => {
+  await openDocument(page, 'before\n\n```js\nconst a = 1\n```\n\nafter\n')
+  const fences = () => page.locator('.cm-md-code-line', { hasText: '```' }).count()
+
+  await page.locator('.cm-line', { hasText: 'after' }).click()
+  await expect.poll(fences).toBe(0)
+  // The lines are still there, as the edges of the block.
+  await expect(page.locator('.cm-md-code-line')).toHaveCount(3)
+
+  // Entering the block shows both, and nothing moves: the block is as tall as it was.
+  const code = page.locator('.cm-line', { hasText: 'const a = 1' })
+  const before = await code.boundingBox()
+  await code.click()
+  await expect.poll(fences).toBe(2)
+  await expect(page.locator('.cm-md-code-first')).toHaveText('```js')
+  expect(await code.boundingBox()).toEqual(before)
+
+  await page.locator('.cm-line', { hasText: 'before' }).click()
+  await expect.poll(fences).toBe(0)
 })
 
 test('an unknown language leaves the block readable', async ({ page }) => {

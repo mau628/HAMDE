@@ -21,7 +21,7 @@ describe('the webview content security policy', () => {
     expect(policy.get('default-src')).toBe("'none'")
   })
 
-  it('forbids all network access', () => {
+  it('lets no script make a request', () => {
     expect(policy.get('connect-src')).toBe("'none'")
   })
 
@@ -29,8 +29,9 @@ describe('the webview content security policy', () => {
     expect(policy.get('script-src')).toBe(SOURCE)
   })
 
-  it('loads images only from the webview origin, never a remote host', () => {
-    expect(policy.get('img-src')).toBe(SOURCE)
+  it('loads images from the webview origin and over https, and from nowhere else', () => {
+    // No `http:`, no `data:`, no `blob:`, no wildcard.
+    expect(policy.get('img-src')).toBe(SOURCE + ' https:')
   })
 
   it('blocks plugins, framing and form submission', () => {

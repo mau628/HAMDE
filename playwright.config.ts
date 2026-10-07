@@ -11,6 +11,17 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',
+    // The welcome dialog opens on a first visit and covers the page, so every
+    // test starts as a visitor who has already dismissed it for good.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:3000',
+          localStorage: [{ name: 'hamde:hide-welcome', value: '1' }],
+        },
+      ],
+    },
   },
   // Chromium only: the File System Access API is the reason this project exists.
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

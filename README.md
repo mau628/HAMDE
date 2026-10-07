@@ -10,8 +10,8 @@
 
 A free, open-source, local-first Markdown editor with an Obsidian-style live preview.
 It runs entirely in your browser and edits the files in a folder on your own disk.
-No backend, no account, no upload — the app makes no network request at all once the
-page has loaded.
+No backend, no account, no upload. Once the page has loaded, the only thing it ever
+asks the network for is an image that a document itself points to on the web.
 
 Markdown renders as you write it, in place. The line your cursor is on shows its
 syntax; everything else reads as the finished document.
@@ -22,7 +22,7 @@ flowchart LR
     folder[("Local folder<br/>*.md files")]
   end
 
-  subgraph browser["Browser tab (no network)"]
+  subgraph browser["Browser tab (your notes stay here)"]
     direction LR
     sidebar["Sidebar<br/>Open Folder · file tree"]
     editor["Editor<br/>live preview, autosave"]
@@ -55,8 +55,16 @@ Node.js 24.11 or newer for development.
 - **Tables rendered as tables**, with column alignment and the inline Markdown
   inside each cell. Click a cell, or arrow into the table, to edit its source.
 - **Fenced code, highlighted** in JavaScript, TypeScript, JSON, HTML, CSS, SQL, XML,
-  YAML, bash, PowerShell and C#. Each grammar is downloaded only if a document uses
-  it.
+  YAML, bash, INI, PowerShell and C#. Each grammar is downloaded only if a document
+  uses it. The fences themselves show only while the cursor is in the block.
+- **HTML, rendered** when it is the safe kind: a centred image, `<details>`, a table
+  with merged cells, `<kbd>`, `<sub>`, `<br>`. Scripts, styles, frames and event
+  handlers never reach the page; see below.
+- **Images from your folder and from the web.** A relative path is read from the
+  folder you opened; an `https:` address is loaded from where it says it is, so the
+  logo and the badges at the top of a README look the way they were meant to.
+- **Links to a heading** (`[Features](#features)`) go to that heading, so a table
+  of contents works.
 - **Mermaid diagrams**, rendered in place. Click one, or arrow into it, to edit its
   source. Mermaid itself is only downloaded when a diagram is actually drawn.
 - **Fences close themselves.** Typing the third backtick of a fence adds the closing one.
@@ -78,9 +86,15 @@ welcome dialog is hidden (localStorage). See [docs/security.md](docs/security.md
 
 ## What it deliberately does not do
 
-- Load anything over the network, including remote images. A remote image is shown
-  as Markdown source; fetching it would tell that server which note you are reading.
-- Render HTML embedded in a document. It is displayed as text.
+- Send your notes anywhere. Nothing in the app can make a request with your text in
+  it: there is no script in a document to read the document with, and the page's
+  policy lets no script reach the network at all. An image on the web is the one
+  thing a document can ask for. Its server learns that the image was asked for,
+  from your address, at that moment — not by which page, and not what the note
+  says. Without a connection the image's description shows in its place.
+- Trust HTML embedded in a document. It is never handed to the browser as HTML: the
+  editor reads it and builds, itself, only the elements and attributes on a short
+  list. Anything else stays as the text it is.
 - Follow a link whose protocol is not http, https or mailto.
 - Rewrite parts of a file you did not edit — including its line endings.
 

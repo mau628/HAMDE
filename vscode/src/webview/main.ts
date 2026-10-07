@@ -2,6 +2,7 @@ import { Annotation, EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, type ViewUpdate } from '@codemirror/view'
 
 import { createEditorExtensions } from '~/editor/editorConfig'
+import { followLink } from '~/editor/livePreview'
 import { isLocalPath } from '~/services/imagePath'
 import { isSafeHref } from '~/services/links'
 import { sameShape, type FromWebview, type TextChange, type ToWebview } from '../protocol'
@@ -118,8 +119,9 @@ document.addEventListener(
     event.preventDefault()
     event.stopPropagation()
 
-    if (event.ctrlKey || event.metaKey) {
-      openLink(anchor.getAttribute('href') ?? anchor.getAttribute('xlink:href') ?? '')
+    if (view !== undefined && (event.ctrlKey || event.metaKey)) {
+      // To a heading of this document, or to the extension by way of `openLink`.
+      followLink(view, anchor.getAttribute('href') ?? anchor.getAttribute('xlink:href') ?? '')
     }
   },
   true,

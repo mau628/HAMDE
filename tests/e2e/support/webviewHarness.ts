@@ -26,8 +26,8 @@ const CONTENT_TYPES: Record<string, string> = {
   '.png': 'image/png',
 }
 
-/** A one-pixel PNG, standing in for an image in the user's workspace. */
-const PIXEL = Buffer.from(
+/** A one-pixel PNG, standing in for an image: in the user's workspace, or on the web. */
+export const PIXEL = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
 )

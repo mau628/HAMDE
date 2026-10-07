@@ -15,10 +15,10 @@ What we defend against:
 
 | Threat | Defence |
 | --- | --- |
-| Script embedded in a document (`<script>`, `onclick`, …) | Embedded HTML is never inserted into the DOM. It is displayed as highlighted text. |
+| Script embedded in a document (`<script>`, `onclick`, …) | Embedded HTML is never handed to the browser as HTML. The editor reads it and builds only the elements and attributes on an allowlist; see [Rendered HTML](#rendered-html). |
 | `javascript:` / `data:` links | `isSafeHref` parses the target with `URL` and allows only https, http and mailto. Anything else is inert text. |
-| Exfiltration of note content | `connect-src 'none'`, plus a build-time check that no remote origin appears in the output. |
-| Tracking via remote images | A remote image is never fetched; it stays as Markdown source. Only files inside the opened folder are rendered, through `blob:` URLs, and only after their type is checked. |
+| Exfiltration of note content | No script from a document ever runs, so nothing can read a note in order to send it; and `connect-src 'none'` means no script could send it if one did. A build-time check keeps remote origins out of the app itself. |
+| Tracking via remote images | **Accepted, not defended against.** An `https:` image a document points to is loaded, which tells its server that it was asked for. See [Remote images](#remote-images) for exactly what that discloses and what it does not. |
 | Accidental data loss | Conflict detection before every write; changes are never discarded silently. |
 | Supply-chain drift | Exact pinned versions, committed lockfile, `npm audit` in CI. |
 
@@ -33,7 +33,7 @@ domain does not change that).
 
 ```
 default-src 'none'; script-src 'self' 'sha256-…'; style-src 'self' 'unsafe-inline';
-img-src 'self' data: blob:; font-src 'self'; connect-src 'none';
+img-src 'self' data: blob: https:; font-src 'self'; connect-src 'none';
 base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none';
 worker-src 'self'; manifest-src 'self'
 ```
@@ -42,9 +42,10 @@ Decisions worth knowing about:
 
 - **`default-src 'none'`** rather than `'self'`. Anything not named is denied, so
   forgetting a directive fails closed.
-- **`connect-src 'none'`** is the technical backstop for "notes never leave the device".
-  Development relaxes it to `'self' ws: wss:` for Vite's HMR socket and the probes
-  browser DevTools makes on its own.
+- **`connect-src 'none'`** is the technical backstop for "notes never leave the device":
+  no script on the page can fetch, post or open a socket, whatever it is and however
+  it got there. Development relaxes it to `'self' ws: wss:` for Vite's HMR socket and
+  the probes browser DevTools makes on its own.
 - **Development also allows inline scripts**, because the dev server renders HTML on
   the fly and the build step that hashes Nuxt's inline config script has not run.
   Without it the app does not mount at all. These two are the only directives that
@@ -66,8 +67,50 @@ Decisions worth knowing about:
 - **`frame-ancestors`, `sandbox` and `report-uri` are absent** because browsers ignore
   them in the meta form. There is therefore no CSP-based framing protection on GitHub
   Pages.
-- **`img-src` allows `blob:` but no remote hosts.** Loading a remote image would tell
-  that server which note is open.
+- **`img-src` allows `blob:` and `https:`.** `blob:` is how a file from the opened
+  folder is shown. `https:` is for an image a document points to on the web, and it
+  is the one directive that lets a document cause a request. It names a scheme and
+  not a list of hosts, because the hosts are whatever the user's documents mention.
+  Plain `http:` is not allowed.
+
+## Remote images
+
+Until this was changed, a remote image was never loaded: it stayed as Markdown
+source, and the policy would have refused it anyway. The reason was that fetching
+it tells a server something. That reason has not gone away. It was weighed against
+the fact that a README is written to be read with its logo and its badges, and the
+decision was to load them. It is recorded here as the trade it is.
+
+**What loading a remote image discloses.** To the server that hosts it, and to
+anything on the path: that this image was requested, from the user's IP address,
+at that moment, by this browser. An image address can be unique to one document,
+so its author can learn when that document is opened. This is what a tracking
+pixel in an e-mail does, and opening a document from someone else now has that
+property.
+
+**What it does not disclose.**
+
+- *Which page asked.* No referrer is sent: the app's page sets `no-referrer`, and
+  so does every image element it creates.
+- *Anything the document says.* The address is requested exactly as written. There
+  is no script in a document to read the document with, so nothing of a note can be
+  put into an address, and no other note can be reached at all.
+- *Anything through another channel.* An image is the only thing fetched. Style
+  sheets, frames, media, forms, prefetches and pings are never created, and the
+  policy would refuse each of them.
+
+**What limits it.**
+
+- Only `https:`. Not `http:`, not `data:`, not a protocol-relative address.
+- An image is fetched when it is drawn. While the cursor is on its line the source
+  shows instead, so an address still being typed is not requested piece by piece.
+- An image that fails to load — offline, or gone — is replaced by its description.
+  The editor works without a connection exactly as before.
+
+The end-to-end suite pins each of these: a remote image produces one request, of
+type image, with no `Referer` and no cookie; a document that tries every other way
+of naming an address produces no request for any of them; and `http:` is not
+loaded.
 
 ## Enforced, not promised
 
@@ -76,7 +119,8 @@ Decisions worth knowing about:
   messages), each justified in
   [`scripts/allowed-origins.mjs`](../scripts/allowed-origins.mjs).
 - The end-to-end suite asserts that loading the app produces no console errors (a CSP
-  violation shows up as one) and issues no request to any host.
+  violation shows up as one) and issues no request to any host; and that a document
+  can cause a request for an image and for nothing else.
 - Unit tests assert the shape of the policy, including that it never contains
   `'unsafe-inline'` in `script-src`.
 
@@ -158,10 +202,11 @@ cursor through every line, so each one is rendered and decorated, and asserts:
 - no dialog appeared and no global was set — nothing executed;
 - the content element contains no script, iframe, style, `javascript:` anchor or
   `on*` attribute — none of it became an element;
-- no request went to any origin but the app’s own;
+- the only request to another origin was for the remote image, as an image;
 - the file on disk was not written, because opening and reading a document is
   not an edit;
-- all of it is still there as text the user can edit.
+- what could be drawn safely was, with nothing of its handlers, and what could not
+  is still there as text the user can read and edit.
 
 ## No telemetry
 
@@ -176,7 +221,7 @@ which encodes HTML in diagram labels and disables click directives. Labels are
 rendered as SVG text rather than embedded HTML (`htmlLabels: false`), so diagram
 content has one less way to become markup.
 
-The rendered SVG is the only markup the app parses from a string, and it is **not**
+The rendered SVG is the only markup the app gives to a browser parser, and it is **not**
 inserted with `innerHTML`. It is parsed with `DOMParser` as `image/svg+xml`,
 which executes nothing, and then scrubbed: script elements are removed, every
 attribute whose name starts with `on` is dropped, and any `href` that is not
@@ -198,6 +243,61 @@ that no dialog appeared.
 Mermaid is bundled, never loaded from a CDN, and diagram source is never sent
 anywhere.
 
+## Rendered HTML
+
+HTML in a document used to be shown as text and nothing else. That kept it from
+ever being executed, and it made the commonest uses of HTML in Markdown unreadable:
+a centred logo at the top of a README, a `<details>`, a table with a merged cell,
+a `<kbd>`. A safe subset is now drawn. This is the largest change to the security
+model since it was written, so it is recorded in full.
+
+**The document's HTML is never given to the browser as HTML.** Not through
+`innerHTML`, and not through `DOMParser` either. It is parsed by the HTML grammar
+the editor already ships for highlighting, into a small model of plain data
+([`htmlModel.ts`](../app/editor/livePreview/htmlModel.ts)), and elements are built
+from that model with `createElement` and text nodes
+([`htmlToDom.ts`](../app/editor/livePreview/htmlToDom.ts)). The sentence above still
+holds: no string in this codebase is interpreted as HTML.
+
+That makes the rule an **allowlist enforced by construction**. A sanitiser takes
+markup and removes what is dangerous, and is as good as its list of dangers. Here
+there is no markup to clean: an element or an attribute exists in the page only if
+this code created it, and it only creates what is named. A parser trick that
+confuses the grammar can change which text is shown, and nothing else.
+
+| What | Rule |
+| --- | --- |
+| Elements | A fixed list of structural and text-level elements: `p`, `div`, headings, lists, tables, `details`, `a`, `img`, `kbd`, `sub`, and the like. |
+| Elements that are not text for the reader (`script`, `style`, `iframe`, `object`, `svg`, `math`, form controls, `meta`, `link`, `base`) | Dropped with everything inside them. |
+| Any other element | Unwrapped: the tag goes, its content stays, so an unknown tag does not take the text with it. |
+| Attributes | `title`, `align`, and a few per element (`href`, `src`, `alt`, `width`, `height`, `colspan`, `rowspan`, `start`, `type`, `open`), each with its value checked. |
+| `style`, `class`, `id`, `name`, every `on…`, `srcset`, `data-*` | Never kept. A document does not get to restyle the editor, shadow a property of `document`, or name more URLs than `src` does. |
+| `<a href>` | The same `isSafeHref` as a Markdown link: http, https or mailto, or it is not a link. Opened on Ctrl/Cmd+click only, with `noopener noreferrer`. |
+| `<img src>` | Loaded exactly as a Markdown image is: a relative path through the host, an `https:` address from the web, and nothing else. See [Remote images](#remote-images). |
+
+Three kinds of block are left as source instead of being drawn, each because
+drawing it would mislead:
+
+- One that is not balanced on its own. CommonMark ends an HTML block at a blank
+  line, so a `<details>` around several paragraphs arrives as an opening half, some
+  Markdown and a closing half.
+- One with nothing visible left once it is made safe — a comment, a `<script>`.
+  Replacing it would make it vanish from the page, and what the user cannot see
+  they cannot remove.
+- One inside a list or a quote, for the reason a table there is left alone.
+
+What still stands behind all of this is the Content Security Policy: no inline
+script, no request from script, no frame, no form, no style sheet from elsewhere.
+The allowlist is the first line; the policy does not depend on it.
+
+Tested at both levels. `tests/unit/htmlModel.spec.ts` checks the model against a
+list of hostile inputs and asserts the invariant directly: no element and no
+attribute outside the lists, and no link target that is not http, https or mailto.
+`tests/e2e/html.spec.ts` then looks at the page: for a block carrying a script, a
+style sheet, a frame, a form, inline SVG, a remote image and handlers on
+everything, the only elements present are the allowed ones, and of the document's
+own attributes the only one that survived is the address of the image.
+
 ## The VS Code extension
 
 The extension in `vscode/` shows the same editor in a VS Code webview. The threat
@@ -213,16 +313,17 @@ unit test asserts that no directive allows anything the site's policy does not.
 
 ```
 default-src 'none'; script-src <webview origin>; style-src <webview origin> 'unsafe-inline';
-img-src <webview origin>; font-src <webview origin>; connect-src 'none';
+img-src <webview origin> https:; font-src <webview origin>; connect-src 'none';
 base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'
 ```
 
-- `connect-src 'none'`: the webview cannot make a request. Nothing in a document
-  and no bug in the editor can send a note anywhere.
+- `connect-src 'none'`: no script in the webview can make a request. Nothing in a
+  document and no bug in the editor can send a note anywhere.
 - `script-src` names only the extension's own files. There is no inline script, so
   no nonce and no hash is needed, and no `'unsafe-eval'`.
-- `img-src` names only the webview origin, which serves nothing but the files VS
-  Code was told it may serve. `data:` and `blob:` are not needed and not allowed.
+- `img-src` names the webview origin, which serves nothing but the files VS Code
+  was told it may serve, and `https:` for [remote images](#remote-images), which
+  the webview loads itself. `data:` and `blob:` are not needed and not allowed.
 - `style-src 'unsafe-inline'` remains, for the reason it does on the site.
 
 **The webview is the less trusted side.** It is where untrusted Markdown is
@@ -245,11 +346,13 @@ rendered, so the extension does not act on what it says without checking:
 climbs with `..`, because the folder the user granted is all it may read. Here the
 workspace folder is the boundary, so a path may climb as long as it stays inside it
 ([`resolveImagePath`](../vscode/src/imagePath.ts)). A file opened outside any
-workspace folder reads only from its own directory. What is still never loaded:
+workspace folder reads only from its own directory. An `https:` image is not the
+extension's business: the webview loads it, and the extension is never asked. What
+the extension itself will never hand over:
 
 | Source | Why |
 | --- | --- |
-| Anything with a scheme (`https:`, `data:`, `file:`, `C:`) | A remote image would tell its server which note is open. |
+| Anything with a scheme (`data:`, `file:`, `C:`, and `https:` too) | The extension reads files. An address is not a file. |
 | An absolute path, or one that resolves outside the folder | The boundary. A backslash counts as a separator, so `..\..\x.png` does not slip through as one odd segment. |
 | A file that is not an image, by extension | The webview must not become a way to read arbitrary files. |
 | A symbolic link | The folder check only sees the link's name, and a link can point anywhere. |
@@ -263,12 +366,15 @@ folder — which it enforces itself, underneath whatever the extension decides.
 - `npm run check:offline:vscode` scans the extension's bundle for remote URLs, with
   the same script and the same allow-list as the site's build.
 - An end-to-end suite loads the built webview with its real policy and runs the
-  hostile document through it: nothing executes, nothing becomes an element, no
-  request leaves, and nothing is sent to the extension.
-- One test is there for a case worth knowing about. While rendering, Mermaid does
-  make the browser try to load an `<img>` written inside a diagram label. Nothing
-  is fetched, and the test asserts that — but what stops it is `img-src`, not the
-  renderer. The same is true on the site.
+  hostile document through it: nothing executes, nothing becomes an element, the
+  only request that leaves is for the remote image, and the only thing asked of the
+  extension is where a relative image is.
+- One test is there for a case worth knowing about. While rendering, Mermaid makes
+  the browser load an `<img>` written inside a diagram label, before the app's own
+  scrubbing sees the result. It is an image like any other the document names, and
+  the test asserts that this is all it is: the handler written beside it never
+  becomes an attribute, and nothing but images is requested. The same is true on
+  the site.
 
 **Workspace trust.** The extension declares support for untrusted workspaces. It
 runs nothing from the workspace and treats every document as hostile already, so a

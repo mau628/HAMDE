@@ -11,12 +11,31 @@ export function hasScheme(source: string): boolean {
 }
 
 /**
+ * Whether the source is an image on the web.
+ *
+ * Only `https:`. An `http:` image would be mixed content on a secure page, which a
+ * browser upgrades or blocks on its own terms; `data:` is not worth the surface;
+ * and every other scheme is not an image address at all. Parsed with `URL`, like a
+ * link target, so `HTTPS://` and stray white space are read the way a browser would.
+ */
+export function isRemoteImage(source: string): boolean {
+  const trimmed = source.trim()
+  if (!/^https:\/\//i.test(trimmed)) return false
+
+  try {
+    return new URL(trimmed).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
  * Whether this is a relative path on disk at all.
  *
- * Anything with a scheme is refused: a remote one would leak, and a `data:` one is
- * not worth the surface. So is an absolute path. Whether a relative path may climb
- * with `..` is a separate question, because the answer depends on where the boundary
- * is: see `isWorkspacePath`.
+ * Anything with a scheme is not: a remote image is loaded from where it says it is
+ * (`isRemoteImage`), and nothing else with a scheme is loaded. An absolute path is
+ * refused too. Whether a relative path may climb with `..` is a separate question,
+ * because the answer depends on where the boundary is: see `isWorkspacePath`.
  */
 export function isLocalPath(source: string): boolean {
   const path = source.trim()

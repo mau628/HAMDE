@@ -33,6 +33,53 @@ export class BulletWidget extends WidgetType {
 }
 
 /**
+ * Replaces the characters of a thematic break (`---`, `***`, `___`) with a rule.
+ *
+ * An element rather than a border on the line, so the rule sits where the text
+ * would, in the middle of the line's height, instead of along its bottom edge.
+ */
+export class RuleWidget extends WidgetType {
+  override eq(): boolean {
+    return true
+  }
+
+  override toDOM(): HTMLElement {
+    const rule = document.createElement('span')
+    rule.className = 'cm-md-rule-line'
+    rule.setAttribute('role', 'separator')
+    return rule
+  }
+
+  override ignoreEvent(): boolean {
+    // A click on the rule puts the cursor on its line, which shows the characters.
+    return false
+  }
+}
+
+/**
+ * Replaces an inline `<br>` with a line break.
+ *
+ * Wrapped in a span because CodeMirror reads a bare `<br>` in its content as the
+ * end of a line of the document, which this is not.
+ */
+export class BreakWidget extends WidgetType {
+  override eq(): boolean {
+    return true
+  }
+
+  override toDOM(): HTMLElement {
+    const wrapper = document.createElement('span')
+    wrapper.className = 'cm-md-html-br'
+    wrapper.append(document.createElement('br'))
+    return wrapper
+  }
+
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
+/**
  * Replaces a task marker (`[ ]` / `[x]`) with a real checkbox.
  *
  * A native `<input type="checkbox">` rather than a styled span: it is focusable,

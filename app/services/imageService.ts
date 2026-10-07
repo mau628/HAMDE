@@ -5,13 +5,12 @@ import type { DirectoryNode } from '~/types/fileSystem'
 /**
  * Images from the user's folder.
  *
- * A remote image is never loaded. Fetching `![](https://tracker.example/x.png)`
- * would tell that server which note is open and when — the exact disclosure this
- * app exists to avoid — so a remote source is shown as text instead.
- *
  * A local image is read through the directory handle the user granted and handed
- * to the browser as a `blob:` URL, which is why `img-src` allows `blob:` and no
- * remote host at all.
+ * to the browser as a `blob:` URL, which is why `img-src` allows `blob:`.
+ *
+ * An image on the web never comes through here. An `https:` address is loaded by
+ * the browser from where it says it is (app/editor/livePreview/images.ts); this
+ * service is only ever asked about paths.
  */
 
 const CACHE_LIMIT = 50

@@ -9,6 +9,7 @@ import {
   type BlockRenderer,
 } from '../../app/editor/livePreview/blockPreview'
 import { buildPreviewDecorations } from '../../app/editor/livePreview/decorations'
+import { htmlRenderer } from '../../app/editor/livePreview/html'
 import { mermaidRenderer } from '../../app/editor/livePreview/mermaid'
 import { tableRenderer } from '../../app/editor/livePreview/table'
 import { createMarkdownSupport } from '../../app/editor/markdown'
@@ -315,5 +316,62 @@ describe('tables', () => {
     })
 
     expect(classes).toContain('cm-md-table-line')
+  })
+})
+
+describe('HTML blocks', () => {
+  /** The HTML renderer, with a widget that cannot touch the DOM. */
+  const html: BlockRenderer = {
+    matches: htmlRenderer.matches,
+    source: htmlRenderer.source,
+    widget: (source) => new StubWidget(source),
+  }
+
+  function replacedHtml(doc: string, cursor = 0): string[] {
+    const state = stateFor(doc, cursor, [html])
+    return replacedBlockRanges(state).map((range) => state.doc.sliceString(range.from, range.to))
+  }
+
+  const LOGO = '<p align="center">\n  <img src="logo.svg" width="160">\n</p>'
+
+  it('replaces a block that is a whole, visible thing', () => {
+    expect(replacedHtml('# Title\n\n' + LOGO + '\n\ntext\n', 0)).toEqual([LOGO])
+  })
+
+  it('shows the source while the cursor is anywhere inside it', () => {
+    const doc = 'text\n\n' + LOGO + '\n\nmore\n'
+
+    expect(replacedHtml(doc, doc.indexOf('<img'))).toEqual([])
+    expect(replacedHtml(doc, doc.indexOf('</p>'))).toEqual([])
+    expect(replacedHtml(doc, 0)).toEqual([LOGO])
+  })
+
+  it('leaves the two halves of an element split by a blank line as source', () => {
+    // CommonMark ends an HTML block at a blank line, so this is an opening block,
+    // a paragraph of Markdown, and a closing block.
+    const doc = 'x\n\n<details>\n<summary>More</summary>\n\nMarkdown **here**\n\n</details>\n'
+    expect(replacedHtml(doc, 0)).toEqual([])
+  })
+
+  it.each([
+    ['a script', '<script>\nalert(1)\n</script>'],
+    ['a style sheet', '<style>\nbody { display: none }\n</style>'],
+    ['a frame', '<iframe src="https://evil.example"></iframe>'],
+    ['a comment', '<!-- a note -->'],
+    ['an empty element', '<div></div>'],
+  ])('leaves %s as source rather than making it vanish', (_name, block) => {
+    expect(replacedHtml('x\n\n' + block + '\n\ny\n', 0)).toEqual([])
+  })
+
+  it('leaves a block inside a list or a quote as source', () => {
+    // A block replacement covers whole lines, so it would swallow the indentation
+    // or the `>` that puts the block where it is.
+    expect(replacedHtml('x\n\n- item\n\n  <div>in a list</div>\n', 0)).toEqual([])
+    expect(replacedHtml('x\n\n> <div>in a quote</div>\n', 0)).toEqual([])
+  })
+
+  it('replaces only the block, when a hostile one sits next to a harmless one', () => {
+    const doc = 'x\n\n<div>fine</div>\n\n<script>alert(1)</script>\n'
+    expect(replacedHtml(doc, 0)).toEqual(['<div>fine</div>'])
   })
 })

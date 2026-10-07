@@ -17,9 +17,29 @@ import type { StreamParser } from '@codemirror/language'
  * and `<style>`. See docs/dependencies.md.
  */
 
-/** Wraps a CodeMirror 5 stream parser, for languages with no Lezer grammar. */
-async function legacy(parser: Promise<StreamParser<unknown>>): Promise<LanguageSupport> {
-  return new LanguageSupport(StreamLanguage.define(await parser))
+/**
+ * Wraps a CodeMirror 5 stream parser, for languages with no Lezer grammar.
+ *
+ * `rename` maps what the parser calls a token to the name of what it means here.
+ * These parsers name tokens after how CodeMirror 5 happened to colour them, and
+ * some of those names now belong to Markdown: `quote` is a blockquote and `header`
+ * is a heading, so a colour given to either for code would land on prose as well.
+ */
+async function legacy(
+  loading: Promise<StreamParser<unknown>>,
+  rename: Readonly<Record<string, string>> = {},
+): Promise<LanguageSupport> {
+  const parser = await loading
+
+  return new LanguageSupport(
+    StreamLanguage.define({
+      ...parser,
+      token(stream, state) {
+        const token = parser.token(stream, state)
+        return token === null ? null : (rename[token] ?? token)
+      },
+    }),
+  )
 }
 
 export const codeLanguages: LanguageDescription[] = [
@@ -91,7 +111,22 @@ export const codeLanguages: LanguageDescription[] = [
   LanguageDescription.of({
     name: 'bash',
     alias: ['sh', 'shell', 'zsh', 'console'],
-    load: () => legacy(import('@codemirror/legacy-modes/mode/shell').then((m) => m.shell)),
+    load: () =>
+      legacy(
+        import('@codemirror/legacy-modes/mode/shell').then((m) => m.shell),
+        // `quote` is a command substitution in backticks.
+        { quote: 'string-2' },
+      ),
+  }),
+  LanguageDescription.of({
+    name: 'ini',
+    alias: ['properties', 'cfg', 'conf'],
+    load: () =>
+      legacy(
+        import('@codemirror/legacy-modes/mode/properties').then((m) => m.properties),
+        // `[section]`, `key` and `value`, in the parser's own words.
+        { header: 'type', def: 'property', quote: 'string' },
+      ),
   }),
   LanguageDescription.of({
     name: 'powershell',

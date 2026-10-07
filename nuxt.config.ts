@@ -14,7 +14,7 @@ const siteUrl = (process.env.NUXT_PUBLIC_SITE_URL ?? 'https://hamde.mau628.com')
 
 const title = "HAMDE — Here's Another Markdown Editor"
 const description =
-  'Free, open-source Markdown editor with Obsidian-style live preview that runs entirely in your browser and edits files in a folder on your own disk. No account, no upload, no tracking.'
+  'Free, open-source Markdown editor with Obsidian-style live preview that runs entirely in your browser and edits files in a folder on your own disk. No account, no upload, no telemetry.'
 
 // Structured data for search engines and AI crawlers. `application/ld+json` is an
 // inert data block: the CSP does not treat it as script and it makes no request.
@@ -38,9 +38,9 @@ const jsonLd = {
     'Edits .md files in a local folder via the File System Access API',
     'Autosave with external-change conflict detection',
     'Tables, task lists, syntax-highlighted code blocks and Mermaid diagrams',
-    'Local images rendered from your folder',
+    'Images from your folder and from the web',
     'Light and dark themes',
-    'Works offline: no network requests after load',
+    'Works offline: the only network requests are for images a document links to',
   ],
 }
 

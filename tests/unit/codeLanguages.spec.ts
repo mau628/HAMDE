@@ -1,10 +1,12 @@
 import { ensureSyntaxTree, LanguageDescription } from '@codemirror/language'
 import { EditorState } from '@codemirror/state'
 import { NodeProp } from '@lezer/common'
+import { highlightTree } from '@lezer/highlight'
 import { describe, expect, it } from 'vitest'
 
 import { codeLanguages } from '../../app/editor/codeLanguages'
 import { buildPreviewDecorations } from '../../app/editor/livePreview/decorations'
+import { markdownHighlightStyle } from '../../app/editor/highlightStyle'
 import { createMarkdownSupport } from '../../app/editor/markdown'
 
 /**
@@ -25,6 +27,7 @@ const EXPECTED = [
   'xml',
   'yaml',
   'bash',
+  'ini',
   'powershell',
   'csharp',
 ]
@@ -74,6 +77,9 @@ describe('matching an info string', () => {
     ['sh', 'bash'],
     ['shell', 'bash'],
     ['zsh', 'bash'],
+    ['ini', 'ini'],
+    ['properties', 'ini'],
+    ['conf', 'ini'],
     ['ps1', 'powershell'],
     ['pwsh', 'powershell'],
     ['cs', 'csharp'],
@@ -110,6 +116,7 @@ describe('parsing a fenced block with its language', () => {
 
   it.each([
     ['bash', 'echo "hi"'],
+    ['ini', '[section]\nkey = value'],
     ['powershell', 'Write-Output "hi"'],
     ['csharp', 'var a = 1;'],
   ])('mounts the legacy %s mode', async (info, code) => {
@@ -124,6 +131,61 @@ describe('parsing a fenced block with its language', () => {
 
   it('leaves a block with no info string unparsed', async () => {
     expect(await mountedLanguage('', 'plain text')).toBeNull()
+  })
+})
+
+/** The pieces of a fenced block's code that the highlight style gives a colour. */
+async function coloured(info: string, code: string): Promise<string[]> {
+  await LanguageDescription.matchLanguageName(codeLanguages, info, true)!.load()
+
+  const doc = '```' + info + '\n' + code + '\n```\n'
+  const state = EditorState.create({ doc, extensions: [createMarkdownSupport()] })
+  const tree = ensureSyntaxTree(state, doc.length, 10_000)!
+  const start = doc.indexOf('\n') + 1
+  const end = start + code.length
+
+  const pieces: string[] = []
+  highlightTree(tree, markdownHighlightStyle, (from, to) => {
+    if (from >= start && to <= end) pieces.push(doc.slice(from, to).trim())
+  })
+  return pieces
+}
+
+describe('colouring what a parser finds', () => {
+  // A language that parses but is not coloured looks exactly like one that is not
+  // supported. That is what a block of shell commands looked like: the parser
+  // knew `npm` was a command, and nothing gave commands a colour.
+  it('colours the command, the flag, the string and the comment of a shell line', async () => {
+    const pieces = await coloured('bash', 'npm install --save "left-pad" # why')
+
+    expect(pieces).toEqual(expect.arrayContaining(['npm', '--save', '"left-pad"', '# why']))
+  })
+
+  it('colours a shell variable and a keyword', async () => {
+    const pieces = await coloured('bash', 'if true; then echo $HOME; fi')
+
+    expect(pieces).toEqual(expect.arrayContaining(['if', 'true', 'then', 'echo', '$HOME', 'fi']))
+  })
+
+  it('colours the section, the key, the value and the comment of an ini file', async () => {
+    const pieces = await coloured('ini', '[core]\nname = value\n; note')
+
+    expect(pieces).toEqual(expect.arrayContaining(['[core]', 'name', 'value', '; note']))
+  })
+
+  it('does not colour a blockquote or a heading on the way', async () => {
+    // The ini parser calls a section a `header` and a value a `quote`, which are
+    // the names Markdown uses for a heading and a blockquote. Colouring those
+    // names instead of renaming them would have coloured prose.
+    const doc = '# Heading\n\n> quoted text\n'
+    const state = EditorState.create({ doc, extensions: [createMarkdownSupport()] })
+    const tree = ensureSyntaxTree(state, doc.length, 10_000)!
+
+    const pieces: string[] = []
+    highlightTree(tree, markdownHighlightStyle, (from, to) => pieces.push(doc.slice(from, to)))
+
+    expect(pieces.join('|')).not.toContain('Heading')
+    expect(pieces.join('|')).not.toContain('quoted text')
   })
 })
 
@@ -150,18 +212,23 @@ describe('code is not Markdown', () => {
     expect(classes).not.toContain('cm-md-link')
   })
 
-  it('hides nothing inside a fenced block', async () => {
+  it('hides nothing inside a fenced block but its fences', async () => {
     await LanguageDescription.matchLanguageName(codeLanguages, 'javascript', true)!.load()
 
     const doc = '```javascript\nconst s = "**bold** and [a](b)"\n```\n'
-    const state = EditorState.create({ doc, extensions: [createMarkdownSupport()] })
+    // The cursor is past the block, so the block is drawn rather than revealed.
+    const state = EditorState.create({
+      doc,
+      selection: { anchor: doc.length },
+      extensions: [createMarkdownSupport()],
+    })
 
     const { hidden } = buildPreviewDecorations(state, [{ from: 0, to: doc.length }])
 
-    let count = 0
-    hidden.between(0, doc.length, () => {
-      count += 1
+    const texts: string[] = []
+    hidden.between(0, doc.length, (from, to) => {
+      texts.push(doc.slice(from, to))
     })
-    expect(count).toBe(0)
+    expect(texts).toEqual(['```javascript', '```'])
   })
 })

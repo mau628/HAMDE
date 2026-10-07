@@ -2,6 +2,7 @@ import { EditorSelection, EditorState } from '@codemirror/state'
 import { describe, expect, it } from 'vitest'
 
 import { buildPreviewDecorations } from '../../app/editor/livePreview/decorations'
+import { imageResolver } from '../../app/editor/livePreview/images'
 import { isRevealed, revealedSpans } from '../../app/editor/livePreview/reveal'
 import { createMarkdownSupport } from '../../app/editor/markdown'
 
@@ -56,6 +57,21 @@ function classesOn(doc: string, from: number, to: number, cursor = 0): string[] 
     if (typeof className === 'string' && rangeFrom <= from && rangeTo >= to) {
       found.push(...className.split(' '))
     }
+  })
+  return found
+}
+
+/** Classes given to a whole line, by its one-based number. */
+function lineClasses(doc: string, line: number, cursor = 0): string[] {
+  const state = stateFor(doc, cursor)
+  const { decorations } = buildPreviewDecorations(state, [{ from: 0, to: doc.length }])
+  const at = state.doc.line(line).from
+
+  const found: string[] = []
+  decorations.between(at, at, (from, to, value) => {
+    const className = value.spec.class
+    // A line decoration is a point; a mark that merely starts here is not one.
+    if (from === at && to === at && typeof className === 'string') found.push(...className.split(' '))
   })
   return found
 }
@@ -142,6 +158,13 @@ describe('headings', () => {
     expect(allClasses('Title\n=====\n', 100)).toContain('cm-md-h1')
   })
 
+  it('tells a setext heading apart, since it already has an underline of its own', () => {
+    // The stylesheet draws a rule under a title; this is the class that stops it
+    // drawing a second one above the `=====`.
+    expect(lineClasses('Title\n=====\n', 1, 100)).toContain('cm-md-setext')
+    expect(lineClasses('# Title\n', 1, 100)).not.toContain('cm-md-setext')
+  })
+
   it('does not treat a hash without a space as a heading', () => {
     expect(rendered('#nothashtag\n', 100)).toBe('#nothashtag\n')
   })
@@ -188,9 +211,9 @@ describe('inline formatting', () => {
     expect(rendered('`**not bold**`\n', 100)).toBe('**not bold**\n')
   })
 
-  it('leaves formatting inside a fenced block untouched', () => {
-    const doc = '```\n**not bold**\n```\n'
-    expect(rendered(doc, 100)).toBe(doc)
+  it('leaves formatting inside a fenced block as literal text', () => {
+    // The fences are hidden; what is between them is not touched.
+    expect(rendered('```\n**not bold**\n```\n', 100)).toBe('\n**not bold**\n\n')
   })
 })
 
@@ -241,6 +264,47 @@ describe('lists', () => {
   })
 })
 
+describe('list indentation', () => {
+  it('indents a top-level list, bulleted or numbered', () => {
+    expect(lineClasses('- one\n', 1, 100)).toEqual(
+      expect.arrayContaining(['cm-md-list-1', 'cm-md-list-item']),
+    )
+    expect(lineClasses('1. one\n', 1, 100)).toEqual(
+      expect.arrayContaining(['cm-md-list-1', 'cm-md-list-item']),
+    )
+  })
+
+  it('indents each level of nesting further', () => {
+    const doc = '- one\n  - two\n    1. three\n'
+
+    expect(lineClasses(doc, 1, 100)).toContain('cm-md-list-1')
+    expect(lineClasses(doc, 2, 100)).toContain('cm-md-list-2')
+    expect(lineClasses(doc, 3, 100)).toContain('cm-md-list-3')
+  })
+
+  it('keeps the indentation while the line is revealed, so nothing jumps', () => {
+    const doc = '- one\n  - two\n'
+    expect(lineClasses(doc, 2, 9)).toEqual(expect.arrayContaining(['cm-md-list-2', 'cm-md-list-item']))
+  })
+
+  it('indents the lines an item continues onto, without hanging a marker there', () => {
+    const doc = '- one\n  still one\n\n  and a second paragraph\n'
+
+    expect(lineClasses(doc, 2, 100)).toContain('cm-md-list-1')
+    expect(lineClasses(doc, 2, 100)).not.toContain('cm-md-list-item')
+    expect(lineClasses(doc, 4, 100)).toContain('cm-md-list-1')
+  })
+
+  it('does not indent the paragraph after the list', () => {
+    expect(lineClasses('- one\n\ntext\n', 3, 100)).toEqual([])
+  })
+
+  it('stops deepening where the stylesheet does, instead of losing the indentation', () => {
+    const doc = Array.from({ length: 12 }, (_, depth) => '  '.repeat(depth) + '- x').join('\n') + '\n'
+    expect(lineClasses(doc, 12, 0)).toContain('cm-md-list-8')
+  })
+})
+
 describe('links', () => {
   it('shows the text and hides the target', () => {
     expect(rendered('see [text](https://example.com)\n', 100)).toBe('see text\n')
@@ -269,8 +333,23 @@ describe('links', () => {
     expect(allClasses('see https://example.com now\n', 100)).toContain('cm-md-url')
   })
 
-  it('leaves an image as source, since images are rendered later', () => {
+  it('leaves a local image as source when there is nothing to read it with', () => {
+    // No resolver in this state: the host is what knows where the files are.
     expect(rendered('![alt](cat.png)\n', 100)).toBe('![alt](cat.png)\n')
+  })
+
+  it('draws an image from the web, which needs nothing but its address', () => {
+    expect(rendered('![alt](https://img.example/badge.svg)\n', 100)).toBe('•\n')
+    expect(rendered('[![alt](https://img.example/badge.svg)](https://example.com)\n', 100)).toBe('•\n')
+  })
+
+  it.each([
+    '![alt](http://img.example/badge.svg)\n',
+    '![alt](data:image/png;base64,AAAA)\n',
+    '![alt](javascript:alert(1))\n',
+    '![alt](file:///etc/passwd)\n',
+  ])('leaves an image with any other scheme as source: %j', (doc) => {
+    expect(rendered(doc, 100)).toBe(doc)
   })
 })
 
@@ -329,13 +408,167 @@ describe('tables, rules and code blocks', () => {
     expect(allClasses(doc, 100)).toContain('cm-md-table-line')
   })
 
-  it('keeps a horizontal rule visible and styles the line', () => {
-    expect(rendered('---\n', 100)).toBe('---\n')
-    expect(allClasses('---\n', 100)).toContain('cm-md-rule')
+  it('styles every line of a fenced block, fences included', () => {
+    const doc = '```\ncode\n```\n'
+    for (const line of [1, 2, 3]) expect(lineClasses(doc, line, 100)).toContain('cm-md-code-line')
+  })
+})
+
+describe('horizontal rules', () => {
+  it('draws the rule in place of its characters', () => {
+    // `rendered` shows a widget as a bullet: the dashes are gone and one thing
+    // stands where they were.
+    expect(rendered('above\n\n---\n\nbelow\n', 0)).toBe('above\n\n•\n\nbelow\n')
   })
 
-  it('styles every line of a fenced block, fences included', () => {
-    expect(allClasses('```\ncode\n```\n', 100)).toContain('cm-md-code-line')
+  it.each(['---', '***', '___', '- - -', '*****'])('does so however it is written: %j', (rule) => {
+    expect(rendered('above\n\n' + rule + '\n', 0)).toBe('above\n\n•\n')
+  })
+
+  it('shows the characters on the line the cursor is on', () => {
+    const doc = 'above\n\n---\n\nbelow\n'
+    expect(rendered(doc, 8)).toBe(doc)
+  })
+
+  it('styles the line either way', () => {
+    expect(lineClasses('a\n\n---\n', 3, 0)).toContain('cm-md-rule')
+    expect(lineClasses('a\n\n---\n', 3, 4)).toContain('cm-md-rule')
+  })
+
+  it('does not mistake a setext underline for a rule', () => {
+    expect(rendered('Title\n---\n', 100)).toBe('Title\n---\n')
+  })
+})
+
+describe('fenced code', () => {
+  const doc = 'before\n\n```js\nconst a = 1\n```\n\nafter\n'
+
+  it('hides both fences, and the language with the opening one', () => {
+    expect(rendered(doc, 0)).toBe('before\n\n\nconst a = 1\n\n\nafter\n')
+  })
+
+  it('keeps the fence lines themselves, as the edges of the block', () => {
+    expect(lineClasses(doc, 3, 0)).toEqual(expect.arrayContaining(['cm-md-code-line', 'cm-md-code-first']))
+    expect(lineClasses(doc, 5, 0)).toEqual(expect.arrayContaining(['cm-md-code-line', 'cm-md-code-last']))
+  })
+
+  it.each([
+    ['the opening fence', 9],
+    ['the code', 20],
+    ['the closing fence', 27],
+  ])('shows both fences while the cursor is on %s', (_where, cursor) => {
+    expect(rendered(doc, cursor)).toBe(doc)
+  })
+
+  it('hides them again once the cursor has left the block', () => {
+    expect(rendered(doc, doc.length)).toBe('before\n\n\nconst a = 1\n\n\nafter\n')
+  })
+
+  it('treats a tilde fence the same way', () => {
+    expect(rendered('x\n\n~~~\ncode\n~~~\n', 0)).toBe('x\n\n\ncode\n\n')
+  })
+
+  it('hides the one fence a block still being typed has', () => {
+    expect(rendered('x\n\n```js\ncode\n\nmore\n', 0)).toBe('x\n\n\ncode\n\nmore\n')
+  })
+
+  it('leaves an indented code block alone: it has no fences', () => {
+    const indented = 'x\n\n    code\n'
+    expect(rendered(indented, 0)).toBe(indented)
+  })
+})
+
+describe('inline HTML', () => {
+  it('hides a pair of tags and keeps what is between them', () => {
+    expect(rendered('press <kbd>Ctrl</kbd> now\n', 100)).toBe('press Ctrl now\n')
+    expect(rendered('H<sub>2</sub>O and x<sup>2</sup>\n', 100)).toBe('H2O and x2\n')
+  })
+
+  it('draws the content as the element named', () => {
+    expect(classesOn('press <kbd>Ctrl</kbd> now\n', 11, 15, 100)).toContain('cm-md-html-kbd')
+  })
+
+  it('draws a tag Markdown has a syntax for the way Markdown would', () => {
+    expect(classesOn('a <b>x</b>\n', 5, 6, 100)).toContain('cm-md-strong')
+    expect(classesOn('a <em>x</em>\n', 6, 7, 100)).toContain('cm-md-emphasis')
+    expect(classesOn('a <del>x</del>\n', 7, 8, 100)).toContain('cm-md-strikethrough')
+  })
+
+  it('reveals both tags when the cursor is on the line', () => {
+    const doc = 'press <kbd>Ctrl</kbd> now\nother\n'
+    expect(rendered(doc, 3)).toBe(doc)
+  })
+
+  it('pairs a tag with its own closing tag when the same element is nested', () => {
+    expect(rendered('<sub>a<sub>b</sub>c</sub>\n', 100)).toBe('abc\n')
+  })
+
+  it('replaces a line break with one', () => {
+    expect(rendered('one<br>two<br/>three\n', 100)).toBe('one•two•three\n')
+  })
+
+  it.each([
+    ['a tag with no partner', 'press <kbd>Ctrl now\n'],
+    ['a closing tag with nothing to close', 'press Ctrl</kbd> now\n'],
+    ['a tag nobody listed', 'a <made-up>x</made-up> b\n'],
+    ['a script', 'a <script>alert(1)</script> b\n'],
+    ['an inline frame', 'a <iframe src="https://evil.example"></iframe> b\n'],
+    ['a comment', 'a <!-- note --> b\n'],
+  ])('leaves %s as the text it is', (_name, doc) => {
+    expect(rendered(doc, 100)).toBe(doc)
+  })
+
+  it('shows a link as its text when the target is one the editor would open', () => {
+    const doc = 'see <a href="https://example.com">the site</a>\n'
+
+    expect(rendered(doc, 100)).toBe('see the site\n')
+    expect(classesOn(doc, 34, 42, 100)).toContain('cm-md-link')
+  })
+
+  it('leaves a link with any other target as source', () => {
+    const doc = 'see <a href="javascript:alert(1)">the site</a>\n'
+    expect(rendered(doc, 100)).toBe(doc)
+  })
+
+  describe('an image', () => {
+    function renderedWithImages(doc: string): string {
+      const state = EditorState.create({
+        doc,
+        selection: EditorSelection.cursor(doc.length),
+        extensions: [createMarkdownSupport(), imageResolver.of(async () => null)],
+      })
+      const { hidden } = buildPreviewDecorations(state, [{ from: 0, to: doc.length }])
+
+      let output = ''
+      let position = 0
+      for (const iterator = hidden.iter(); iterator.value !== null; iterator.next()) {
+        output += state.doc.sliceString(position, iterator.from) + '•'
+        position = iterator.to
+      }
+      return output + state.doc.sliceString(position)
+    }
+
+    it('is drawn when it comes from the workspace', () => {
+      expect(renderedWithImages('logo <img src="images/logo.png" width="120"> here\n')).toBe(
+        'logo • here\n',
+      )
+    })
+
+    it('is drawn when it comes from the web over https', () => {
+      expect(renderedWithImages('logo <img src="https://img.example/badge.svg"> here\n')).toBe(
+        'logo • here\n',
+      )
+    })
+
+    it.each([
+      'logo <img src="http://img.example/badge.svg"> here\n',
+      'logo <img src="//img.example/badge.svg"> here\n',
+      'logo <img src="data:image/png;base64,AAAA"> here\n',
+      'logo <img src="../outside.png"> here\n',
+      'logo <img alt="no source"> here\n',
+    ])('stays as source when it does not: %j', (doc) => {
+      expect(renderedWithImages(doc)).toBe(doc)
+    })
   })
 })
 
@@ -366,6 +599,15 @@ describe('invariants', () => {
     '   ## indented\n',
     '<https://example.com> and ![alt](cat.png)\n',
     '> - a\n>   - b\n',
+    // Whole lines that are now hidden or replaced.
+    'a\n\n---\n\n***\n\nb\n',
+    '```js\nconst a = 1\n```\n\n~~~\nx\n~~~\n',
+    '- a\n  ```\n  code\n  ```\n',
+    // Inline HTML, paired and not, including a tag that wraps onto another line.
+    'a <kbd>Ctrl</kbd> b <br> c <b>x</b> <sub>n<sub>m</sub></sub>\n',
+    '<kbd>open only\n',
+    'text <a href="https://example.com">link</a> and <a\nhref="https://example.com">wrapped</a>\n',
+    'a <kbd>starts here\nand ends</kbd> there\n',
   ]
 
   it.each(documents)('no replacement crosses a line break: %j', (doc) => {

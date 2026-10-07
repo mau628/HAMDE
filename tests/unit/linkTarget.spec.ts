@@ -89,12 +89,25 @@ describe('images are never a link target', () => {
     expect(targetIn(doc, inside(doc, needle))).toBeNull()
   })
 
-  it('refuses the inner image of an image wrapped in a link', () => {
-    const doc = '[![alt](inner.png)](https://example.com)\n'
+  it('gives an image wrapped in a link the link, never its own address', () => {
+    // How a badge is written. The image is something to look at; what it is a link
+    // to is the link it sits in.
+    const doc = '[![alt](https://img.example/badge.svg)](https://example.com)\n'
 
-    // Over the image, nothing opens — not the image, and not the link around it.
-    expect(targetIn(doc, inside(doc, 'inner.png'))).toBeNull()
-    expect(targetIn(doc, inside(doc, 'alt'))).toBeNull()
+    expect(targetIn(doc, inside(doc, 'img.example'))).toBe('https://example.com')
+    expect(targetIn(doc, inside(doc, 'alt'))).toBe('https://example.com')
+  })
+})
+
+describe('links to a heading of the document', () => {
+  it('returns the fragment, for the editor to follow itself', () => {
+    const doc = 'see [the features](#features) below\n'
+    expect(targetIn(doc, inside(doc, 'the features'))).toBe('#features')
+  })
+
+  it('returns the fragment of an inline anchor too', () => {
+    const doc = 'see <a href="#features">the features</a> below\n'
+    expect(targetIn(doc, inside(doc, 'the features'))).toBe('#features')
   })
 })
 
@@ -114,5 +127,40 @@ describe('what the result is used for', () => {
 
     expect(target).toBe('./other.md')
     expect(isSafeHref(target!)).toBe(false)
+  })
+})
+
+describe('inline HTML links', () => {
+  it('returns the href of the anchor the position is inside', () => {
+    const doc = 'see <a href="https://example.com">the site</a> now\n'
+    expect(targetIn(doc, inside(doc, 'the site'))).toBe('https://example.com')
+  })
+
+  it('returns nothing before the anchor opens or after it closes', () => {
+    const doc = 'see <a href="https://example.com">the site</a> now\n'
+
+    expect(targetIn(doc, inside(doc, 'see'))).toBeNull()
+    expect(targetIn(doc, inside(doc, 'now'))).toBeNull()
+  })
+
+  it('picks the right anchor when a line has several', () => {
+    const doc = '<a href="https://one.example">one</a> and <a href="https://two.example">two</a>\n'
+
+    expect(targetIn(doc, inside(doc, 'one<'))).toBe('https://one.example')
+    expect(targetIn(doc, inside(doc, 'two<'))).toBe('https://two.example')
+    expect(targetIn(doc, inside(doc, 'and'))).toBeNull()
+  })
+
+  it.each(['javascript:alert(1)', 'data:text/html,x', 'file:///etc/passwd', 'notes/other.md'])(
+    'returns nothing for an anchor to %j',
+    (href) => {
+      const doc = `see <a href="${href}">the site</a> now\n`
+      expect(targetIn(doc, inside(doc, 'the site'))).toBeNull()
+    },
+  )
+
+  it('returns nothing for an anchor with no href', () => {
+    const doc = 'see <a name="top">the site</a> now\n'
+    expect(targetIn(doc, inside(doc, 'the site'))).toBeNull()
   })
 })
