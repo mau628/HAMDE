@@ -6,11 +6,17 @@
 
 *Here's Another Markdown Editor.*
 
-**[Try it live → hamde.mau628.com](https://hamde.mau628.com)**
+**[Try it live → hamde.mau628.com](https://hamde.mau628.com)** · **[VS Code extension](#vs-code-extension)**
 
 A free, open-source, local-first Markdown editor with an Obsidian-style live preview.
-It runs entirely in your browser and edits the files in a folder on your own disk.
-No backend, no account, no upload. Once the page has loaded, the only thing it ever
+It comes in two forms that share one editor:
+
+- **A web app** that runs entirely in your browser and edits the files in a folder
+  on your own disk.
+- **A VS Code extension** that opens `.md` files in the same live preview, with
+  VS Code in charge of the files.
+
+No backend, no account, no upload. Once the editor has loaded, the only thing it ever
 asks the network for is an image that a document itself points to on the web.
 
 Markdown renders as you write it, in place. The line your cursor is on shows its
@@ -35,15 +41,20 @@ flowchart LR
 
 ## Requirements
 
-A Chromium-based browser. The editor is built on the
+For the web app, a Chromium-based browser. It is built on the
 [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker),
 which Firefox and Safari do not implement. This is a deliberate scope decision, not
 an oversight: that API is what makes editing your own files possible without a
 server in the middle.
 
+For the extension, VS Code 1.100 or newer.
+
 Node.js 24.11 or newer for development.
 
 ## What it does
+
+This is the web app; the extension renders the same Markdown and leaves folders,
+saving and themes to VS Code (see [VS Code extension](#vs-code-extension)).
 
 - **Open a folder** and browse it. Directories are read one level at a time, so a
   folder with thousands of notes opens immediately.
