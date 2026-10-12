@@ -482,3 +482,40 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/*
+ * On paper. Where a page ends is the one thing a screen never had to decide.
+ */
+@media print {
+  /* A shaded block is how code is told from prose; a printer drops backgrounds
+     unless told that they mean something. */
+  .cm-editor {
+    print-color-adjust: exact;
+  }
+
+  /* A heading belongs to what follows it. */
+  .cm-editor .cm-md-heading,
+  .cm-editor .cm-md-html :is(h1, h2, h3, h4, h5, h6) {
+    break-after: avoid;
+  }
+
+  .cm-editor :is(.cm-md-image, .cm-md-diagram, .cm-md-html pre),
+  .cm-editor :is(.cm-md-table, .cm-md-html) tr {
+    break-inside: avoid;
+  }
+
+  /* A code block is a run of lines, so it is kept together by keeping each line
+     with the one before it. One longer than a page still breaks: it has to. */
+  .cm-editor .cm-md-code-line:not(.cm-md-code-first) {
+    break-before: avoid;
+  }
+
+  /* Nothing scrolls on paper: what would have scrolled wraps, or runs on. */
+  .cm-editor :is(.cm-md-table, .cm-md-diagram, .cm-md-html, .cm-md-html pre) {
+    overflow: visible;
+  }
+
+  .cm-editor .cm-md-html pre {
+    white-space: pre-wrap;
+  }
+}

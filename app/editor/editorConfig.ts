@@ -13,6 +13,7 @@ import {
 } from './livePreview/images'
 import { linkOpener, livePreview, type LinkOpener } from './livePreview'
 import { createMarkdownSupport } from './markdown'
+import { printSupport } from './print'
 import { editorTheme } from './theme'
 
 /**
@@ -98,6 +99,7 @@ export function createEditorExtensions(options: EditorOptions): Extension[] {
     syntaxHighlighting(markdownHighlightStyle),
     // Renders Markdown in place, revealing the syntax of the line the cursor is on.
     livePreview(),
+    printSupport(),
     editorTheme,
   ]
 }

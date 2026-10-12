@@ -3,7 +3,7 @@ import { Facet, Prec, StateField, type EditorState, type Extension, type Range }
 import { Decoration, EditorView, keymap, type DecorationSet, type WidgetType } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 
-import { isRevealed, revealedSpans, type Span } from './reveal'
+import { isPrinting, isRevealed, revealedSpans, type Span } from './reveal'
 
 /**
  * Block-level preview: structures that are replaced as a whole.
@@ -83,7 +83,10 @@ export const blockPreviewField = StateField.define<BlockPreviewState>({
     // the parser had not reached yet.
     const reparsed = syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
 
-    if (transaction.docChanged || reparsed) {
+    // A widget can be drawn differently for paper, so printing is a rescan too.
+    const printing = isPrinting(transaction.startState) !== isPrinting(transaction.state)
+
+    if (transaction.docChanged || reparsed || printing) {
       const blocks = scan(transaction.state)
       return { blocks, decorations: decorate(transaction.state, blocks) }
     }

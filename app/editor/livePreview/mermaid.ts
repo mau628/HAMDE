@@ -3,8 +3,10 @@ import { WidgetType, type EditorView } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 
 import { cachedDiagram, renderDiagram } from '~/services/mermaidService'
+import { currentTheme, type Theme } from '~/services/theme'
 import { blockStart, moveCursorTo } from './blockCursor'
 import type { BlockRenderer } from './blockPreview'
+import { isPrinting } from './reveal'
 
 /**
  * Mermaid diagrams, rendered in place of their source.
@@ -29,11 +31,15 @@ export const mermaidRenderer: BlockRenderer = {
     return code === null ? '' : state.doc.sliceString(code.from, code.to)
   },
 
-  widget: (source) => new MermaidWidget(source),
+  widget: (source, state) => new MermaidWidget(source, isPrinting(state)),
 }
 
 export class MermaidWidget extends WidgetType {
-  constructor(private readonly code: string) {
+  constructor(
+    private readonly code: string,
+    /** Drawn for paper, which is light whatever the screen is. */
+    private readonly onPaper = false,
+  ) {
     super()
   }
 
@@ -42,7 +48,7 @@ export class MermaidWidget extends WidgetType {
    * document never re-renders a diagram — CodeMirror keeps the DOM that is there.
    */
   override eq(other: MermaidWidget): boolean {
-    return other.code === this.code
+    return other.code === this.code && other.onPaper === this.onPaper
   }
 
   /**
@@ -67,30 +73,45 @@ export class MermaidWidget extends WidgetType {
       this.placeCursorInside(view, container)
     })
 
-    const cached = cachedDiagram(this.code)
+    const theme: Theme = this.onPaper ? 'light' : currentTheme()
+
+    const cached = cachedDiagram(this.code, theme)
     if (cached !== undefined) {
       container.append(cached.cloneNode(true))
       return container
     }
 
-    // Something has to occupy the space until the render resolves, and the source
-    // is the honest placeholder: it is what the block contains.
-    const placeholder = document.createElement('pre')
-    placeholder.className = 'cm-md-diagram__pending'
-    placeholder.textContent = this.code
-    container.append(placeholder)
+    // A print started from the browser's own menu does not wait for anything. The
+    // drawing in the screen's colours is then a better thing to have on the page
+    // than the source.
+    const onScreen = this.onPaper ? cachedDiagram(this.code) : undefined
 
-    void this.renderInto(container, view)
+    if (onScreen !== undefined) {
+      container.append(onScreen.cloneNode(true))
+    } else {
+      // Something has to occupy the space until the render resolves, and the source
+      // is the honest placeholder: it is what the block contains.
+      const placeholder = document.createElement('pre')
+      placeholder.className = 'cm-md-diagram__pending'
+      placeholder.textContent = this.code
+      container.append(placeholder)
+    }
+
+    // What `print.ts` waits on before it lets the page go to the printer.
+    container.classList.add('cm-md-diagram--pending')
+
+    void this.renderInto(container, view, theme)
     return container
   }
 
-  private async renderInto(container: HTMLElement, view: EditorView): Promise<void> {
-    const result = await renderDiagram(this.code)
+  private async renderInto(container: HTMLElement, view: EditorView, theme: Theme): Promise<void> {
+    const result = await renderDiagram(this.code, theme)
 
     // The widget may have been replaced while Mermaid was working.
     if (!container.isConnected) return
 
     container.replaceChildren(result.ok ? result.svg : errorBox(result.message, this.code))
+    container.classList.remove('cm-md-diagram--pending')
     container.classList.toggle('cm-md-diagram--failed', !result.ok)
 
     // The block just changed height; tell the editor so scrolling stays honest.

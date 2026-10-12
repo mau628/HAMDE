@@ -2,90 +2,115 @@
  * Mermaid rendering.
  *
  * Mermaid is the largest dependency in the project, so it is imported dynamically
- * and only when a document actually contains a diagram. It is initialised once, with
- * the strictest configuration it offers.
+ * and only when a document actually contains a diagram. It is configured with the
+ * strictest settings it offers.
  *
  * The rendered SVG is the only generated markup this app puts in the DOM. It is not
  * inserted with `innerHTML`: it is parsed with `DOMParser` and scrubbed first, so the
  * codebase keeps the property that no string is ever interpreted as HTML.
  */
 
-import { currentTheme } from '~/services/theme'
+import { currentTheme, type Theme } from '~/services/theme'
 
 export type DiagramResult =
   | { ok: true; svg: SVGElement }
   | { ok: false; message: string }
 
-/** Rendered diagrams by source, so moving the cursor never re-renders. */
+type Mermaid = typeof import('mermaid').default
+
+/**
+ * Rendered diagrams by theme and source, so moving the cursor never re-renders.
+ *
+ * By theme as well, because a diagram's colours are part of its SVG: the one drawn
+ * for a dark screen is not the one that goes on paper.
+ */
 const cache = new Map<string, SVGElement>()
 
-let loading: Promise<typeof import('mermaid').default> | null = null
+let loading: Promise<Mermaid> | null = null
 let nextId = 0
 
-function prefersDark(): boolean {
-  return currentTheme() === 'dark'
+/** The theme Mermaid is set up for. It has one configuration, shared by every render. */
+let configured: Theme | null = null
+
+/** Renders run one at a time, so a change of theme cannot land in the middle of one. */
+let queue: Promise<unknown> = Promise.resolve()
+
+function cacheKey(code: string, theme: Theme): string {
+  return theme + '\n' + code
 }
 
-async function getMermaid() {
-  loading ??= import('mermaid').then(({ default: mermaid }) => {
-    mermaid.initialize({
-      // Rendering is driven by the editor, never by a page scan.
-      startOnLoad: false,
-      // Encodes HTML in diagram labels and disables click directives, so a diagram
-      // in an untrusted document cannot introduce markup or behaviour.
-      securityLevel: 'strict',
-      // Labels as SVG text rather than embedded HTML: one less way for content to
-      // become markup, and it keeps the diagram a pure SVG.
-      flowchart: { htmlLabels: false },
-      class: { htmlLabels: false },
-      // The theme is chosen once, when the first diagram renders. Switching the
-      // theme afterwards needs a reload; see docs/live-preview.md.
-      theme: prefersDark() ? 'dark' : 'default',
-      fontFamily: 'system-ui, sans-serif',
-    })
-    return mermaid
-  })
-
+async function getMermaid(): Promise<Mermaid> {
+  loading ??= import('mermaid').then(({ default: mermaid }) => mermaid)
   return loading
 }
 
+function configure(mermaid: Mermaid, theme: Theme): void {
+  if (configured === theme) return
+
+  mermaid.initialize({
+    // Rendering is driven by the editor, never by a page scan.
+    startOnLoad: false,
+    // Encodes HTML in diagram labels and disables click directives, so a diagram
+    // in an untrusted document cannot introduce markup or behaviour.
+    securityLevel: 'strict',
+    // Labels as SVG text rather than embedded HTML: one less way for content to
+    // become markup, and it keeps the diagram a pure SVG.
+    flowchart: { htmlLabels: false },
+    class: { htmlLabels: false },
+    theme: theme === 'dark' ? 'dark' : 'default',
+    fontFamily: 'system-ui, sans-serif',
+  })
+  configured = theme
+}
+
 /** A diagram already rendered, for a widget that can show it immediately. */
-export function cachedDiagram(code: string): SVGElement | undefined {
-  return cache.get(code)
+export function cachedDiagram(code: string, theme: Theme = currentTheme()): SVGElement | undefined {
+  return cache.get(cacheKey(code, theme))
 }
 
 /**
- * Renders a diagram.
+ * Renders a diagram, in the theme in effect unless another is asked for.
  *
  * Invalid syntax is a normal outcome — the user is typing — so it comes back as a
  * message rather than an exception.
  */
-export async function renderDiagram(code: string): Promise<DiagramResult> {
-  const cached = cache.get(code)
+export async function renderDiagram(
+  code: string,
+  theme: Theme = currentTheme(),
+): Promise<DiagramResult> {
+  const key = cacheKey(code, theme)
+  const cached = cache.get(key)
   if (cached !== undefined) return { ok: true, svg: cached.cloneNode(true) as SVGElement }
 
-  let mermaid
+  let mermaid: Mermaid
   try {
     mermaid = await getMermaid()
   } catch (cause) {
     return { ok: false, message: describe(cause, 'Could not load Mermaid') }
   }
 
-  try {
-    // parse() first: it reports a syntax error without leaving anything behind.
-    await mermaid.parse(code)
+  const drawn = queue.then(async (): Promise<DiagramResult> => {
+    try {
+      configure(mermaid, theme)
 
-    nextId += 1
-    const { svg } = await mermaid.render('hamde-diagram-' + nextId, code)
+      // parse() first: it reports a syntax error without leaving anything behind.
+      await mermaid.parse(code)
 
-    const element = svgFromMarkup(svg)
-    if (element === null) return { ok: false, message: 'Mermaid produced markup that is not SVG' }
+      nextId += 1
+      const { svg } = await mermaid.render('hamde-diagram-' + nextId, code)
 
-    cache.set(code, element)
-    return { ok: true, svg: element.cloneNode(true) as SVGElement }
-  } catch (cause) {
-    return { ok: false, message: describe(cause, 'Invalid diagram') }
-  }
+      const element = svgFromMarkup(svg)
+      if (element === null) return { ok: false, message: 'Mermaid produced markup that is not SVG' }
+
+      cache.set(key, element)
+      return { ok: true, svg: element.cloneNode(true) as SVGElement }
+    } catch (cause) {
+      return { ok: false, message: describe(cause, 'Invalid diagram') }
+    }
+  })
+  queue = drawn
+
+  return drawn
 }
 
 function describe(cause: unknown, fallback: string): string {

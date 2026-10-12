@@ -9,6 +9,7 @@ import { htmlRenderer } from './html'
 import { parseInlineTag } from './htmlModel'
 import { followLink } from './linkFollow'
 import { mermaidRenderer } from './mermaid'
+import { isPrinting, printingField } from './reveal'
 import { tableRenderer } from './table'
 
 export { followLink, linkOpener, type LinkOpener } from './linkFollow'
@@ -43,6 +44,7 @@ export { followLink, linkOpener, type LinkOpener } from './linkFollow'
  */
 export function livePreview(): Extension {
   return [
+    printingField,
     blockPreview([mermaidRenderer, tableRenderer, htmlRenderer]),
     previewPlugin,
     atomicHiddenRanges,
@@ -64,7 +66,16 @@ class LivePreview {
     // document, which arrives as its own transaction.
     const parsedFurther = syntaxTree(update.startState) !== syntaxTree(update.state)
 
-    if (update.docChanged || update.viewportChanged || update.selectionSet || parsedFurther) {
+    // Printing stops the selection from revealing anything.
+    const printing = isPrinting(update.startState) !== isPrinting(update.state)
+
+    if (
+      update.docChanged ||
+      update.viewportChanged ||
+      update.selectionSet ||
+      parsedFurther ||
+      printing
+    ) {
       this.rebuild(update.view)
     }
   }

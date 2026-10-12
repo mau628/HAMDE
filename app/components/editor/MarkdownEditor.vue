@@ -3,6 +3,7 @@ import { Annotation, EditorState } from '@codemirror/state'
 import { EditorView, type ViewUpdate } from '@codemirror/view'
 
 import { createEditorExtensions } from '~/editor/editorConfig'
+import { printDocument } from '~/editor/print'
 import { loadWorkspaceImage } from '~/services/imageService'
 import { MOD_KEY_LABEL } from '~/services/links'
 
@@ -54,6 +55,30 @@ function toggleWidth(): void {
   }
 }
 let view: EditorView | undefined
+
+/** Prints the document. A saved PDF is named after the file, not after the app. */
+function printNow(): void {
+  if (!view) return
+  const name = activeDocument.value?.file.name.replace(/.(md|markdown)$/i, '')
+  void printDocument(view, { title: name })
+}
+
+const IS_MAC = MOD_KEY_LABEL === 'Cmd'
+
+function onKeydown(event: KeyboardEvent): void {
+  // Ctrl+P on a Mac is "previous line", in the editor as in every other text field.
+  const mod = IS_MAC ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
+  if (!mod || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'p') return
+
+  // The browser would print the page as it stands: the app, and one screenful of
+  // the document.
+  event.preventDefault()
+  printNow()
+}
+
+// On the window, so the key works wherever the focus is, as it does in a browser.
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 /**
  * Images resolve against the open folder and the document that references them.
@@ -112,34 +137,59 @@ watch(
 <template>
   <div class="editor" :class="{ 'editor--wide': wide }">
     <div ref="host" class="editor__host" />
-    <button
-      type="button"
-      class="editor__width"
-      :title="`${wide ? 'Narrow editor' : 'Wide editor'} (${MOD_KEY_LABEL}+,)`"
-      :aria-label="wide ? 'Narrow editor' : 'Wide editor'"
-      :aria-pressed="wide"
-      @click="toggleWidth"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        width="18"
-        height="18"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
+    <div class="editor__tools">
+      <button
+        type="button"
+        class="editor__tool"
+        :title="`Print (${MOD_KEY_LABEL}+P)`"
+        aria-label="Print"
+        @click="printNow"
       >
-        <template v-if="wide">
-          <!-- |-><-| : shrink -->
-          <path d="M3 4v16M21 4v16" />
-          <path d="M7 12h4M9 10l2 2-2 2" />
-          <path d="M17 12h-4M15 10l-2 2 2 2" />
-        </template>
-        <path v-else d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" />
-      </svg>
-    </button>
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M7 8V3h10v5" />
+          <path d="M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <path d="M7 14h10v7H7z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="editor__tool"
+        :title="`${wide ? 'Narrow editor' : 'Wide editor'} (${MOD_KEY_LABEL}+,)`"
+        :aria-label="wide ? 'Narrow editor' : 'Wide editor'"
+        :aria-pressed="wide"
+        @click="toggleWidth"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <template v-if="wide">
+            <!-- |-><-| : shrink -->
+            <path d="M3 4v16M21 4v16" />
+            <path d="M7 12h4M9 10l2 2-2 2" />
+            <path d="M17 12h-4M15 10l-2 2 2 2" />
+          </template>
+          <path v-else d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" />
+        </svg>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -159,21 +209,46 @@ watch(
   max-width: none;
 }
 
-.editor__width {
+.editor__tools {
   position: absolute;
   top: 8px;
   right: 20px;
   z-index: 10;
   display: flex;
+  gap: 4px;
+  background: var(--color-bg);
+}
+
+.editor__tool {
+  display: flex;
   padding: 4px;
   color: var(--color-text-muted);
-  background: var(--color-bg);
+  background: none;
   border: 0;
   cursor: pointer;
 }
 
-.editor__width:hover,
-.editor__width:focus-visible {
+.editor__tool:hover,
+.editor__tool:focus-visible {
   color: var(--color-accent);
+}
+
+/* The page margins follow the width; the two pages are defined in main.css. */
+@media print {
+  .editor {
+    page: hamde-narrow;
+  }
+
+  .editor--wide {
+    page: hamde-wide;
+  }
+
+  .editor__host {
+    height: auto;
+  }
+
+  .editor__tools {
+    display: none;
+  }
 }
 </style>

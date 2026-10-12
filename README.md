@@ -90,6 +90,9 @@ saving and themes to VS Code (see [VS Code extension](#vs-code-extension)).
   Folder) forgets it.
 - **Light and dark themes**, following the system until you choose one.
 - **Narrow or wide editor**, toggled with the button in the editor or Ctrl/Cmd+,.
+- **Printing**, with the button in the editor or Ctrl/Cmd+P: the whole document,
+  rendered, in the light palette, and nothing of the app around it. The page margins
+  follow the editor's width: 2.54 cm when it is wide, 3.18 cm when it is narrow.
 
 Only three small preferences stay in the browser, and none of them is note content:
 the last folder's handle (IndexedDB), the theme and editor width, and whether the

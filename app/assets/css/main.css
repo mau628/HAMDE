@@ -514,3 +514,64 @@ body {
   font-style: italic;
   color: var(--color-text-muted);
 }
+
+/*
+ * Printing.
+ *
+ * Only the document goes on paper: the sidebar, the buttons and the status are the
+ * app, not the note. The margins are those of the page and follow the editor's
+ * width (see MarkdownEditor.vue): 2.54cm when the text fills the editor, 3.18cm
+ * when it keeps the narrow measure. Between them the text takes all the room there
+ * is, because the measure that suits a screen is not the paper's.
+ */
+@page hamde-narrow {
+  margin: 3.18cm;
+}
+
+@page hamde-wide {
+  margin: 2.54cm;
+}
+
+@media print {
+  html,
+  body,
+  #__nuxt,
+  .shell {
+    height: auto;
+  }
+
+  .shell {
+    display: block;
+  }
+
+  .shell__explorer,
+  .conflict,
+  .status,
+  .welcome {
+    display: none;
+  }
+
+  .shell__editor {
+    display: block;
+    overflow: visible;
+  }
+
+  /* The editor scrolls on screen; on paper it is as long as the document. */
+  .shell__editor .cm-editor {
+    height: auto;
+  }
+
+  .shell__editor .cm-editor .cm-scroller {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .shell__editor .cm-editor .cm-content {
+    max-width: none;
+    padding: 0;
+  }
+
+  .shell__editor .cm-editor :is(.cm-cursorLayer, .cm-selectionLayer) {
+    display: none;
+  }
+}

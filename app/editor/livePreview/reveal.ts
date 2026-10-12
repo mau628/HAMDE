@@ -1,8 +1,32 @@
-import type { EditorState } from '@codemirror/state'
+import { StateEffect, StateField, type EditorState } from '@codemirror/state'
 
 export interface Span {
   from: number
   to: number
+}
+
+/** Turns printing on or off. Dispatched by `print.ts`, around the print itself. */
+export const setPrinting = StateEffect.define<boolean>()
+
+/**
+ * Whether the document is being drawn for paper.
+ *
+ * Paper has no cursor, so nothing is revealed while this is set: the selection is
+ * left where it is and simply stops counting.
+ */
+export const printingField = StateField.define<boolean>({
+  create: () => false,
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setPrinting)) value = effect.value
+    }
+    return value
+  },
+})
+
+/** False for a state without the field, so the layers also work on their own. */
+export function isPrinting(state: EditorState): boolean {
+  return state.field(printingField, false) ?? false
 }
 
 /**
@@ -19,6 +43,8 @@ export interface Span {
  */
 export function revealedSpans(state: EditorState): Span[] {
   const spans: Span[] = []
+
+  if (isPrinting(state)) return spans
 
   for (const range of state.selection.ranges) {
     const from = state.doc.lineAt(range.from).from

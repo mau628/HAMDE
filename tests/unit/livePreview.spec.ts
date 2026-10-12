@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest'
 
 import { buildPreviewDecorations } from '../../app/editor/livePreview/decorations'
 import { imageResolver } from '../../app/editor/livePreview/images'
-import { isRevealed, revealedSpans } from '../../app/editor/livePreview/reveal'
+import {
+  isRevealed,
+  printingField,
+  revealedSpans,
+  setPrinting,
+} from '../../app/editor/livePreview/reveal'
 import { createMarkdownSupport } from '../../app/editor/markdown'
 
 /**
@@ -101,6 +106,22 @@ describe('reveal rule', () => {
       selection: EditorSelection.range(2, 9),
     })
     expect(revealedSpans(state)).toEqual([{ from: 0, to: 13 }])
+  })
+
+  it('reveals nothing while the document is being printed', () => {
+    const state = EditorState.create({
+      doc: 'one\ntwo\nthree\n',
+      selection: EditorSelection.cursor(5),
+      extensions: [printingField],
+    })
+
+    const printing = state.update({ effects: setPrinting.of(true) }).state
+    expect(revealedSpans(printing)).toEqual([])
+    // The cursor has not moved: it is where it was when the print is over.
+    expect(printing.selection.main.head).toBe(5)
+
+    const after = printing.update({ effects: setPrinting.of(false) }).state
+    expect(revealedSpans(after)).toEqual([{ from: 4, to: 7 }])
   })
 
   it('merges adjacent cursors into one span', () => {

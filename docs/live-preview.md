@@ -188,12 +188,51 @@ in through `innerHTML`: it is parsed with `DOMParser` and scrubbed of script
 elements, event-handler attributes and unsafe link targets first. See
 docs/security.md.
 
+A diagram's colours are part of its SVG, so the cache is by theme as well as by
+source: the app's theme (the one chosen with the theme button, or the system colour
+scheme if none was chosen) on screen, and always the light one on paper.
+
 ### Known limitation
 
-The diagram theme is the app's theme (the one chosen with the theme button, or the
-system colour scheme if none was chosen) at the moment the first diagram renders.
-Switching the theme afterwards, in the app or in the system, needs a reload for
-diagrams to follow.
+A diagram that is already on screen keeps the colours it was drawn with when the
+theme is switched. It is drawn in the new ones the next time it is: when it is
+edited, scrolled away from and back to, or after a reload.
+
+## Printing
+
+What is printed is the editor itself, under the `@media print` rules in the
+stylesheets, so paper cannot drift from the preview. `app/editor/print.ts` puts
+right the three things about an editor that are wrong for a page:
+
+- **Only what is on screen is drawn.** The rest of a document is an empty spacer of
+  the right height. The whole document is drawn for the duration of a print, and
+  the parser is run to the end first, since the preview is built from its tree.
+- **The cursor's line shows its syntax.** A state field, `printingField`, makes the
+  reveal rule answer "nothing" while it is set. The selection is not moved, so the
+  cursor is where it was afterwards.
+- **Images and diagrams arrive late.** The print waits until every image has
+  loaded or failed and every diagram is drawn, for at most eight seconds.
+
+Paper is light whatever the screen is. The dark palette in `tokens.css` is declared
+for `screen` only, and a diagram is drawn again in Mermaid's light theme.
+
+The margins are the page's, not the text's: `2.54cm` when the editor is wide and
+`3.18cm` when it is narrow, on all four sides, as two named `@page` rules that the
+editor picks between. Inside them the text takes the full width. A heading stays
+with what follows it, and a code block, an image, a diagram and a table row are not
+split across pages when they fit on one.
+
+### Known limitations
+
+- **A print started from the browser's own menu cannot wait.** It gets the whole
+  document with nothing revealed, but an image that was never scrolled to is not
+  in it, and a diagram keeps the colours it has on screen. The button and
+  Ctrl/Cmd+P are the way to print.
+- **Drawing the whole document uses a switch CodeMirror has no public name for.**
+  It throws that switch itself when a print is announced, and back half a second
+  later, which is not long enough to load an image in. The dependency is pinned and
+  `tests/e2e/print.spec.ts` fails if an upgrade moves it.
+- **The VS Code extension does not print.** A webview cannot open a print dialog.
 
 ## Tables
 

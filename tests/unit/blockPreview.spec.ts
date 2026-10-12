@@ -11,6 +11,7 @@ import {
 import { buildPreviewDecorations } from '../../app/editor/livePreview/decorations'
 import { htmlRenderer } from '../../app/editor/livePreview/html'
 import { mermaidRenderer } from '../../app/editor/livePreview/mermaid'
+import { printingField, setPrinting } from '../../app/editor/livePreview/reveal'
 import { tableRenderer } from '../../app/editor/livePreview/table'
 import { createMarkdownSupport } from '../../app/editor/markdown'
 
@@ -126,6 +127,21 @@ describe('revealing the source', () => {
 
     const moved = state.update({ selection: EditorSelection.cursor(0) }).state
     expect(replacedBlockRanges(moved)).toHaveLength(1)
+  })
+
+  it('replaces the block for a print, cursor inside or not, and only for the print', () => {
+    const state = EditorState.create({
+      doc,
+      selection: EditorSelection.cursor(insideDiagram),
+      extensions: [createMarkdownSupport(), printingField, blockPreview([stubbed])],
+    })
+    expect(replacedBlockRanges(state)).toEqual([])
+
+    const printing = state.update({ effects: setPrinting.of(true) }).state
+    expect(replacedBlockRanges(printing)).toHaveLength(1)
+
+    const after = printing.update({ effects: setPrinting.of(false) }).state
+    expect(replacedBlockRanges(after)).toEqual([])
   })
 
   it('keeps the block replaced while the cursor is on a neighbouring line', () => {
