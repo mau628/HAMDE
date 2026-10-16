@@ -17,7 +17,9 @@
   --color-selection: #d6e4f7;
   --color-warning: #a33b2a;
   --color-warning-bg: #fdf1ee;
-  --color-code-bg: #f2f2ef;
+  /* Translucent, so the editor's selection, drawn behind the text, shows through
+     code; it reads as #f2f2ef on the page background. */
+  --color-code-bg: rgb(125 125 95 / 0.1);
 
   /* Syntax colours, shared by Markdown punctuation and fenced code blocks. */
   --color-syntax-mark: #a8a8a1;
@@ -48,7 +50,7 @@
     --color-selection: #2c4260;
     --color-warning: #e08b7a;
     --color-warning-bg: #3a2420;
-    --color-code-bg: #262625;
+    --color-code-bg: rgb(195 195 194 / 0.06);
 
     --color-syntax-mark: #6a6a63;
     --color-syntax-keyword: #c792ea;
@@ -71,7 +73,7 @@
     --color-selection: #2c4260;
     --color-warning: #e08b7a;
     --color-warning-bg: #3a2420;
-    --color-code-bg: #262625;
+    --color-code-bg: rgb(195 195 194 / 0.06);
 
     --color-syntax-mark: #6a6a63;
     --color-syntax-keyword: #c792ea;
