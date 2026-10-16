@@ -22,8 +22,8 @@ committed; `npm audit` runs in CI.
 | `@lezer/markdown` | **Required explicitly.** `markdown()` defaults to `commonmarkLanguage`, which has no GFM. `markdownLanguage` (or `GFM` from this package) provides tables, task lists, strikethrough and autolinks. |
 | `@codemirror/commands` | History and default keybindings. |
 | `mermaid` | Diagram rendering. Bundled locally, never from a CDN, and imported dynamically: ~1.5 MB that a document without a diagram never downloads. |
-| `@codemirror/lang-javascript`, `-json`, `-html`, `-css`, `-sql`, `-xml`, `-yaml` | Grammars for fenced code blocks, each imported dynamically so it costs nothing until a document uses it. |
-| `@codemirror/legacy-modes` | bash (`shell`), INI (`properties`), PowerShell and C# (`clike`), for which no Lezer grammar exists. Wrapped in `StreamLanguage`. |
+| `@codemirror/lang-javascript`, `-html`, `-css`, `-sql`, `-xml`, `-yaml` | Grammars for fenced code blocks, each imported dynamically so it costs nothing until a document uses it. |
+| `@codemirror/legacy-modes` | bash (`shell`), INI (`properties`), PowerShell and C# (`clike`), for which no Lezer grammar exists, and JSON (`javascript`'s `json`), whose Lezer grammar rejects comments. Wrapped in `StreamLanguage`. |
 
 ## The VS Code extension
 
@@ -76,8 +76,8 @@ Two consequences:
   same grammar (`htmlLanguage.parser`), so drawing HTML added no parser and no
   sanitising library; see [security.md](security.md).
 - In M7, `javascript`, `typescript`, `html` and `css` cost nothing extra, because their
-  grammars are already loaded. Lazy loading only matters for json, sql, xml, yaml and
-  the `legacy-modes` parsers (bash, powershell, csharp).
+  grammars are already loaded. Lazy loading only matters for sql, xml, yaml and
+  the `legacy-modes` parsers (json, bash, powershell, csharp).
 
 ## Bundle baseline
 
