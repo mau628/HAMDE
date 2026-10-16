@@ -42,6 +42,27 @@ async function legacy(
   )
 }
 
+/**
+ * JSON through CodeMirror 5's JavaScript mode, which, unlike the Lezer JSON grammar,
+ * knows comments. It calls a quoted key `string property`, which would colour it as
+ * a string, and gives brackets and commas no token at all; both are put back to
+ * look as they did under the Lezer grammar.
+ */
+function json(parser: StreamParser<unknown>): LanguageSupport {
+  return new LanguageSupport(
+    StreamLanguage.define({
+      ...parser,
+      token(stream, state) {
+        const token = parser.token(stream, state)
+        if (token === 'string property') return 'property'
+        // Not `null`: this mode returns `undefined` for what it does not colour.
+        if (!token && /^[{}[\],:]$/.test(stream.current())) return 'punctuation'
+        return token
+      },
+    }),
+  )
+}
+
 export const codeLanguages: LanguageDescription[] = [
   LanguageDescription.of({
     name: 'javascript',
@@ -61,11 +82,11 @@ export const codeLanguages: LanguageDescription[] = [
   }),
   LanguageDescription.of({
     name: 'json',
-    alias: ['jsonc'],
-    async load() {
-      const { json } = await import('@codemirror/lang-json')
-      return json()
-    },
+    // Plain JSON has no comments, but JSON in documentation usually does, so every
+    // flavour gets the same lenient parser: comments, trailing commas, and JSON5's
+    // single quotes, bare keys and hex numbers all read as what they are.
+    alias: ['jsonc', 'json5'],
+    load: () => import('@codemirror/legacy-modes/mode/javascript').then((m) => json(m.json)),
   }),
   LanguageDescription.of({
     name: 'html',

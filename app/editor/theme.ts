@@ -30,7 +30,8 @@ export const editorTheme = EditorView.theme({
   '&.cm-focused': { outline: 'none' },
   '.cm-line': { padding: '0' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--color-text)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
+  // Spelled as specifically as CodeMirror's own focused rule, which would win otherwise.
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection': {
     backgroundColor: 'var(--color-selection)',
   },
 })

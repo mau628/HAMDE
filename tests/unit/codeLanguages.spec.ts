@@ -104,7 +104,6 @@ describe('parsing a fenced block with its language', () => {
   it.each([
     ['javascript', 'const a = 1', 'Script'],
     ['typescript', 'const a: string = "x"', 'Script'],
-    ['json', '{"a": 1}', 'JsonText'],
     ['css', 'a { color: red; }', 'StyleSheet'],
     ['html', '<p>hi</p>', 'Document'],
     ['sql', 'select 1', 'Script'],
@@ -119,6 +118,7 @@ describe('parsing a fenced block with its language', () => {
     ['ini', '[section]\nkey = value'],
     ['powershell', 'Write-Output "hi"'],
     ['csharp', 'var a = 1;'],
+    ['json', '{"a": 1}'],
   ])('mounts the legacy %s mode', async (info, code) => {
     // Stream parsers produce a tree of their own; the name is an implementation
     // detail, so it is enough that something was mounted.
@@ -171,6 +171,33 @@ describe('colouring what a parser finds', () => {
     const pieces = await coloured('ini', '[core]\nname = value\n; note')
 
     expect(pieces).toEqual(expect.arrayContaining(['[core]', 'name', 'value', '; note']))
+  })
+
+  it.each(['json', 'jsonc', 'json5'])('colours the comments in a %s block', async (info) => {
+    const pieces = await coloured(info, '{\n  // why\n  "a": 1 /* unit */\n}')
+
+    expect(pieces).toEqual(expect.arrayContaining(['// why', '/* unit */', '"a"', '1']))
+  })
+
+  it('tells a JSON key from a JSON string, and keeps its brackets muted', async () => {
+    await LanguageDescription.matchLanguageName(codeLanguages, 'json', true)!.load()
+    const doc = '```json\n{"key": "value"}\n```\n'
+    const state = EditorState.create({ doc, extensions: [createMarkdownSupport()] })
+    const tree = ensureSyntaxTree(state, doc.length, 10_000)!
+
+    const classes = new Map<string, string>()
+    highlightTree(tree, markdownHighlightStyle, (from, to, cls) => classes.set(doc.slice(from, to), cls))
+
+    expect(classes.get('"key"')).toBeDefined()
+    expect(classes.get('"value"')).toBeDefined()
+    expect(classes.get('"key"')).not.toBe(classes.get('"value"'))
+    expect(classes.get('{')).toBeDefined()
+  })
+
+  it('reads JSON5 as JSON5 rather than as errors', async () => {
+    const pieces = await coloured('json5', "{key: 'single', hex: 0x1F, last: true,}")
+
+    expect(pieces).toEqual(expect.arrayContaining(['key', "'single'", '0x1F', 'true']))
   })
 
   it('does not colour a blockquote or a heading on the way', async () => {
