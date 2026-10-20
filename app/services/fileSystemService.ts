@@ -43,6 +43,46 @@ function joinPath(parent: string, name: string): string {
   return parent === '' ? name : `${parent}/${name}`
 }
 
+/** The directory a workspace-relative path lives in, walked down from the root. */
+async function parentHandleOf(root: DirectoryNode, path: string): Promise<FileSystemDirectoryHandle> {
+  const segments = path.split('/').filter((segment) => segment !== '')
+  segments.pop()
+
+  let current = root.handle
+  for (const segment of segments) current = await current.getDirectoryHandle(segment)
+  return current
+}
+
+async function exists(directory: FileSystemDirectoryHandle, name: string): Promise<boolean> {
+  try {
+    await directory.getFileHandle(name)
+    return true
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'NotFoundError') return false
+    throw error
+  }
+}
+
+/** Copies a file within `directory` under a new name, then removes the original. */
+async function copyAndRemove(
+  directory: FileSystemDirectoryHandle,
+  source: { handle: FileSystemFileHandle; name: string },
+  name: string,
+): Promise<FileSystemFileHandle> {
+  const bytes = await (await source.handle.getFile()).arrayBuffer()
+  const handle = await directory.getFileHandle(name, { create: true })
+  const writable = await handle.createWritable()
+  try {
+    await writable.write(bytes)
+  } catch (error) {
+    await writable.abort?.()
+    throw error
+  }
+  await writable.close()
+  await directory.removeEntry(source.name)
+  return handle
+}
+
 function stampOf(file: File): FileStamp {
   return { lastModified: file.lastModified, size: file.size }
 }
@@ -208,15 +248,43 @@ export function createFileSystemService(): FileSystemService {
     },
 
     async createFile(directory: DirectoryNode, name: string) {
-      try {
-        await directory.handle.getFileHandle(name)
-        return null // already exists; never overwrite
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error
-      }
+      if (await exists(directory.handle, name)) return null // never overwrite
 
       const handle = await directory.handle.getFileHandle(name, { create: true })
       return { kind: 'file', name, path: joinPath(directory.path, name), handle }
+    },
+
+    async renameFile(root: DirectoryNode, file: FileNode, name: string) {
+      if (name === file.name) return file
+
+      const parent = await parentHandleOf(root, file.path)
+      const path = file.path.slice(0, file.path.length - file.name.length) + name
+      // On a case-insensitive disk a case-only rename finds the file itself.
+      const caseOnly = name.toLowerCase() === file.name.toLowerCase()
+      if (!caseOnly && (await exists(parent, name))) return null
+
+      // `move` renames in place where the browser has it.
+      const movable = file.handle as FileSystemFileHandle & { move?: (name: string) => Promise<void> }
+      if (typeof movable.move === 'function') {
+        await movable.move(name)
+        return { kind: 'file', name, path, handle: file.handle }
+      }
+
+      // Elsewhere the file is copied and the original removed only once the copy is
+      // closed, so a failure part way leaves the original intact. A case-only rename
+      // goes through a temporary name: copying onto the same file would destroy it.
+      let source = { handle: file.handle, name: file.name }
+      if (caseOnly) {
+        const temporary = `.${name}.${Date.now()}.tmp`
+        source = { handle: await copyAndRemove(parent, source, temporary), name: temporary }
+      }
+      const handle = await copyAndRemove(parent, source, name)
+
+      return { kind: 'file', name, path, handle }
+    },
+
+    async deleteFile(root: DirectoryNode, file: FileNode) {
+      await (await parentHandleOf(root, file.path)).removeEntry(file.name)
     },
 
     async ensureWritePermission(node: FileTreeNode) {

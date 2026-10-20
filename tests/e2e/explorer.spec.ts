@@ -158,3 +158,96 @@ test('opening a folder issues no network request', async ({ page }) => {
 
   expect(external).toEqual([])
 })
+
+/** The rename or delete button on a file's row, which shows on hover. */
+async function fileAction(page: Page, file: string, action: 'Rename' | 'Delete') {
+  const row = page.getByRole('button', { name: file, exact: true }).locator('..')
+  await row.hover()
+  return row.getByRole('button', { name: action, exact: true })
+}
+
+/** Answers the next dialogs in order: a string fills a prompt, a boolean confirms or not. */
+function answerDialogs(page: Page, answers: (string | boolean)[]): string[] {
+  const messages: string[] = []
+  page.on('dialog', (dialog) => {
+    messages.push(dialog.message())
+    const answer = answers.shift()
+    if (answer === false || answer === undefined) void dialog.dismiss()
+    else void dialog.accept(typeof answer === 'string' ? answer : undefined)
+  })
+  return messages
+}
+
+test('deletes a file only after the user confirms', async ({ page }) => {
+  await installFakePicker(page, FOLDER)
+  await openFolder(page)
+  const messages = answerDialogs(page, [false, true])
+
+  await (await fileAction(page, 'README.md', 'Delete')).click()
+  await expect.poll(() => messages.length).toBe(1)
+  await expect(page.getByRole('button', { name: 'README.md' })).toBeVisible()
+
+  await (await fileAction(page, 'README.md', 'Delete')).click()
+  await expect(page.getByRole('button', { name: 'README.md' })).toBeHidden()
+  expect(messages).toEqual([
+    'Delete "README.md"? This cannot be undone.',
+    'Delete "README.md"? This cannot be undone.',
+  ])
+})
+
+test('deleting the open file closes it', async ({ page }) => {
+  await installFakePicker(page, FOLDER)
+  await openFolder(page)
+  await page.getByRole('button', { name: 'README.md' }).click()
+  await expect(page.locator('.cm-content')).toContainText('Root note.')
+  answerDialogs(page, [true])
+
+  await (await fileAction(page, 'README.md', 'Delete')).click()
+
+  await expect(page.getByRole('button', { name: 'README.md' })).toBeHidden()
+  await expect(page.locator('.cm-content')).not.toContainText('Root note.')
+})
+
+test('renames a file only after the user confirms the new name', async ({ page }) => {
+  await installFakePicker(page, FOLDER)
+  await openFolder(page)
+  await page.getByRole('button', { name: 'Projects' }).click()
+  const messages = answerDialogs(page, ['endpoints', false, 'endpoints', true])
+
+  await (await fileAction(page, 'api.md', 'Rename')).click()
+  await expect.poll(() => messages.length).toBe(2)
+  await expect(page.getByRole('button', { name: 'api.md' })).toBeVisible()
+
+  await (await fileAction(page, 'api.md', 'Rename')).click()
+  await expect(page.getByRole('button', { name: 'endpoints.md' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'api.md' })).toBeHidden()
+  expect(messages[1]).toBe('Rename "api.md" to "endpoints.md"?')
+
+  await page.getByRole('button', { name: 'endpoints.md' }).click()
+  await expect(page.locator('.cm-content')).toContainText('Endpoints live here.')
+})
+
+test('renaming the open file keeps it open under its new name', async ({ page }) => {
+  await installFakePicker(page, FOLDER)
+  await openFolder(page)
+  await page.getByRole('button', { name: 'README.md' }).click()
+  answerDialogs(page, ['Intro.md', true])
+
+  await (await fileAction(page, 'README.md', 'Rename')).click()
+
+  await expect(page.getByRole('button', { name: 'Intro.md' })).toHaveAttribute('aria-current', 'true')
+  await expect(page.locator('.status__path')).toContainText('Intro.md')
+  await expect(page.locator('.cm-content')).toContainText('Root note.')
+})
+
+test('refuses to rename onto an existing file', async ({ page }) => {
+  await installFakePicker(page, FOLDER)
+  await openFolder(page)
+  await page.getByRole('button', { name: 'Projects' }).click()
+  answerDialogs(page, ['todo.md', true])
+
+  await (await fileAction(page, 'api.md', 'Rename')).click()
+
+  await expect(page.locator('.shell__notice')).toContainText('already exists')
+  await expect(page.getByRole('button', { name: 'api.md' })).toBeVisible()
+})

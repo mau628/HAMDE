@@ -219,3 +219,61 @@ describe('ensureWritePermission', () => {
     expect(await service.ensureWritePermission(fileNode(file.handle))).toBe(false)
   })
 })
+
+describe('renameFile', () => {
+  async function fileIn(root: DirectoryNode, path: string): Promise<FileNode> {
+    let directory = root
+    const segments = path.split('/')
+    for (const segment of segments.slice(0, -1)) {
+      const children = await service.listChildren(directory)
+      directory = children.find((child) => child.name === segment) as DirectoryNode
+    }
+    const children = await service.listChildren(directory)
+    return children.find((child) => child.path === path) as FileNode
+  }
+
+  it('renames a nested file and keeps its content', async () => {
+    const tree = { Projects: { 'api.md': '# API', 'other.md': 'x' } }
+    const root = rootNode(fakeDirectory('notes', tree))
+
+    const renamed = await service.renameFile(root, await fileIn(root, 'Projects/api.md'), 'endpoints.md')
+
+    expect(renamed).toMatchObject({ name: 'endpoints.md', path: 'Projects/endpoints.md' })
+    expect(Object.keys(tree.Projects).sort()).toEqual(['endpoints.md', 'other.md'])
+    expect((await service.readFile(renamed!)).text).toBe('# API')
+  })
+
+  it('refuses to overwrite an existing file, and leaves both untouched', async () => {
+    const tree = { 'a.md': 'first', 'b.md': 'second' }
+    const root = rootNode(fakeDirectory('notes', tree))
+
+    expect(await service.renameFile(root, await fileIn(root, 'a.md'), 'b.md')).toBeNull()
+
+    expect(Object.keys(tree).sort()).toEqual(['a.md', 'b.md'])
+    expect((await service.readFile(await fileIn(root, 'b.md'))).text).toBe('second')
+  })
+
+  it('changes only the case of a name without losing the file', async () => {
+    const tree = { 'note.md': 'kept' }
+    const root = rootNode(fakeDirectory('notes', tree))
+
+    const renamed = await service.renameFile(root, await fileIn(root, 'note.md'), 'Note.md')
+
+    expect(Object.keys(tree)).toEqual(['Note.md'])
+    expect((await service.readFile(renamed!)).text).toBe('kept')
+  })
+})
+
+describe('deleteFile', () => {
+  it('removes a nested file and nothing else', async () => {
+    const tree = { 'keep.md': 'x', Projects: { 'api.md': '# API', 'todo.md': '# Todo' } }
+    const root = rootNode(fakeDirectory('notes', tree))
+    const [projects] = await service.listChildren(root)
+    const [api] = await service.listChildren(projects as DirectoryNode)
+
+    await service.deleteFile(root, api as FileNode)
+
+    expect(Object.keys(tree.Projects)).toEqual(['todo.md'])
+    expect(Object.keys(tree).sort()).toEqual(['Projects', 'keep.md'])
+  })
+})

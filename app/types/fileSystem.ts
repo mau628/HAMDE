@@ -82,6 +82,15 @@ export interface FileSystemService {
    * Never overwrites: resolves to `null` if a file with that name already exists.
    */
   createFile(directory: DirectoryNode, name: string): Promise<FileNode | null>
+  /**
+   * Gives `file` a new name in the same directory. `root` is the workspace folder,
+   * which is how the file's parent is found.
+   *
+   * Never overwrites: resolves to `null` if a file with that name already exists.
+   */
+  renameFile(root: DirectoryNode, file: FileNode, name: string): Promise<FileNode | null>
+  /** Removes `file` from disk. `root` is the workspace folder, as for `renameFile`. */
+  deleteFile(root: DirectoryNode, file: FileNode): Promise<void>
   /** Ensures write permission is still granted, prompting if the browser allows. */
   ensureWritePermission(node: FileTreeNode): Promise<boolean>
   /**
