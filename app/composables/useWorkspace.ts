@@ -221,12 +221,8 @@ export function useWorkspace() {
   async function createFile(rawName: string): Promise<void> {
     if (root.value === null) return
 
-    const name = rawName.trim()
-    if (name === '' || /[\\/:*?"<>|]/.test(name) || isHiddenEntry(name)) {
-      error.value = { kind: 'read-failed', path: name, message: 'Invalid file name' }
-      return
-    }
-    const fileName = isMarkdownFile(name) ? name : `${name}.md`
+    const fileName = toMarkdownFileName(rawName)
+    if (fileName === null) return
 
     error.value = null
     busy.value = true
@@ -246,6 +242,81 @@ export function useWorkspace() {
     }
   }
 
+  /**
+   * Validates a name typed by the user and gives it a Markdown extension if it has
+   * none. Resolves to `null`, with the error set, when the name is not usable.
+   */
+  function toMarkdownFileName(rawName: string): string | null {
+    const name = rawName.trim()
+    if (name === '' || /[\\/:*?"<>|]/.test(name) || isHiddenEntry(name)) {
+      error.value = { kind: 'read-failed', path: name, message: 'Invalid file name' }
+      return null
+    }
+    return isMarkdownFile(name) ? name : `${name}.md`
+  }
+
+  /**
+   * Renames a file in place, keeping it open if it was the open document.
+   *
+   * Appends `.md` when the new name has no Markdown extension. `confirm` is asked
+   * with that final name, and nothing happens unless it agrees. The open document
+   * is saved first; if that fails the file keeps its name.
+   */
+  async function renameFile(
+    file: FileNode,
+    rawName: string,
+    confirm: (fileName: string) => boolean,
+  ): Promise<void> {
+    if (root.value === null) return
+
+    error.value = null
+    const fileName = toMarkdownFileName(rawName)
+    if (fileName === null || fileName === file.name || !confirm(fileName)) return
+
+    const wasOpen = openDocuments.activeDocument.value?.file.path === file.path
+    if (wasOpen && !(await openDocuments.closeDocument())) return
+
+    error.value = null
+    busy.value = true
+    try {
+      const renamed = await fileSystemService.renameFile(root.value, file, fileName)
+      if (renamed === null) {
+        // Reopening clears the error, so it is set afterwards.
+        if (wasOpen) await openFile(file)
+        error.value = { kind: 'read-failed', path: fileName, message: 'A file with that name already exists' }
+        return
+      }
+      withRawHandle(renamed)
+      await refresh()
+      if (wasOpen) await openFile(renamed)
+    } catch (cause) {
+      error.value = toWorkspaceError(cause, file.path)
+      await refresh()
+    } finally {
+      busy.value = false
+    }
+  }
+
+  /** Deletes a file from disk, closing it first if it is the open document. */
+  async function deleteFile(file: FileNode): Promise<void> {
+    if (root.value === null) return
+
+    if (openDocuments.activeDocument.value?.file.path === file.path) {
+      await openDocuments.discardDocument()
+    }
+
+    error.value = null
+    busy.value = true
+    try {
+      await fileSystemService.deleteFile(root.value, file)
+      await refresh()
+    } catch (cause) {
+      error.value = toWorkspaceError(cause, file.path)
+    } finally {
+      busy.value = false
+    }
+  }
+
   return {
     root,
     error: readonly(error),
@@ -259,6 +330,8 @@ export function useWorkspace() {
     openFile,
     refresh,
     createFile,
+    renameFile,
+    deleteFile,
   }
 }
 

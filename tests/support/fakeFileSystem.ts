@@ -39,7 +39,7 @@ class FakeFile {
 }
 
 class FakeWritable {
-  private buffer: Uint8Array
+  private buffer: Uint8Array<ArrayBufferLike>
 
   constructor(
     private readonly file: FakeFile,
@@ -48,7 +48,10 @@ class FakeWritable {
     this.buffer = keepExistingData ? new Uint8Array(file.contents) : new Uint8Array(0)
   }
 
-  async write(command: { type: 'write'; position: number; data: Uint8Array }): Promise<void> {
+  async write(
+    command: { type: 'write'; position: number; data: Uint8Array } | ArrayBuffer,
+  ): Promise<void> {
+    if (command instanceof ArrayBuffer) command = { type: 'write', position: 0, data: new Uint8Array(command) }
     const end = command.position + command.data.byteLength
     const next = new Uint8Array(Math.max(this.buffer.byteLength, end))
     next.set(this.buffer)
@@ -87,6 +90,7 @@ class FakeFileHandle {
       size: file.size,
       lastModified: file.lastModified,
       text: async () => new TextDecoder().decode(file.contents),
+      arrayBuffer: async () => file.contents.slice().buffer,
     }
   }
 
@@ -117,21 +121,58 @@ class FakeDirectoryHandle {
     private readonly files: Map<string, FakeFile>,
   ) {}
 
+  /** Subdirectory handles are cached so their files keep their state across lookups. */
+  private readonly directories = new Map<string, FakeDirectoryHandle>()
+
+  private fileHandle(name: string, value: string): FakeFileHandle {
+    let file = this.files.get(name)
+    if (!file) {
+      file = new FakeFile(name, new TextEncoder().encode(value))
+      this.files.set(name, file)
+    }
+    return new FakeFileHandle(name, file, this.options)
+  }
+
+  private directoryHandle(name: string, value: FakeTree): FakeDirectoryHandle {
+    let directory = this.directories.get(name)
+    if (!directory) {
+      directory = new FakeDirectoryHandle(name, value, this.options, new Map())
+      this.directories.set(name, directory)
+    }
+    return directory
+  }
+
   async *entries(): AsyncGenerator<[string, FakeFileHandle | FakeDirectoryHandle]> {
     if (this.options.failWith) throw this.options.failWith
 
     for (const [name, value] of Object.entries(this.tree)) {
-      if (typeof value === 'string') {
-        let file = this.files.get(name)
-        if (!file) {
-          file = new FakeFile(name, new TextEncoder().encode(value))
-          this.files.set(name, file)
-        }
-        yield [name, new FakeFileHandle(name, file, this.options)]
-      } else {
-        yield [name, new FakeDirectoryHandle(name, value, this.options, new Map())]
-      }
+      yield [name, typeof value === 'string' ? this.fileHandle(name, value) : this.directoryHandle(name, value)]
     }
+  }
+
+  async getFileHandle(name: string, options?: { create?: boolean }) {
+    const value = this.tree[name]
+    if (value === undefined && options?.create) {
+      this.tree[name] = ''
+      return this.fileHandle(name, '')
+    }
+    if (typeof value !== 'string') throw new DOMException('Not a file', 'NotFoundError')
+    return this.fileHandle(name, value)
+  }
+
+  async getDirectoryHandle(name: string) {
+    const value = this.tree[name]
+    if (value === undefined || typeof value === 'string') {
+      throw new DOMException('Not a directory', 'NotFoundError')
+    }
+    return this.directoryHandle(name, value)
+  }
+
+  async removeEntry(name: string) {
+    if (this.tree[name] === undefined) throw new DOMException('Not found', 'NotFoundError')
+    delete this.tree[name]
+    this.files.delete(name)
+    this.directories.delete(name)
   }
 
   async queryPermission() {

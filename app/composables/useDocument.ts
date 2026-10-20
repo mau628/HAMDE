@@ -137,6 +137,19 @@ export function useDocument() {
     return true
   }
 
+  /**
+   * Closes the document without writing its pending text.
+   *
+   * For a file that is about to be deleted: saving it first would be wasted work,
+   * and a failed save must not keep the user from deleting it.
+   */
+  async function discardDocument(): Promise<void> {
+    if (activeDocument.value === null) return
+    getController().discardPendingText()
+    await getController().close()
+    activeDocument.value = null
+  }
+
   return {
     activeDocument,
     saveState,
@@ -144,6 +157,7 @@ export function useDocument() {
     hasUnsavedChanges,
     openDocument,
     closeDocument,
+    discardDocument,
     edit,
     saveNow,
     overwriteOnDisk,

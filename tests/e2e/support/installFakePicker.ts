@@ -87,16 +87,15 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
             size: bytes.byteLength,
             lastModified: state.lastModified,
             text: async () => state.contents,
+            arrayBuffer: async () => bytes.buffer,
           }
         },
         async createWritable() {
           let buffer = ''
           return {
-            async write(command: { data: Uint8Array | string }) {
-              buffer =
-                typeof command.data === 'string'
-                  ? command.data
-                  : new TextDecoder().decode(command.data)
+            async write(command: { data: Uint8Array | string } | ArrayBuffer) {
+              const data = command instanceof ArrayBuffer ? command : command.data
+              buffer = typeof data === 'string' ? data : new TextDecoder().decode(data)
             },
             async truncate() {
               // The fake stores text, so the explicit truncate has nothing to do.
@@ -140,7 +139,8 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
         const childPath = path === '' ? childName : path + '/' + childName
         return makeDirectoryHandle(childName, childPath, value)
       },
-      async getFileHandle(childName: string) {
+      async getFileHandle(childName: string, options?: { create?: boolean }) {
+        if (contents[childName] === undefined && options?.create) contents[childName] = ''
         const value = contents[childName]
         if (value === undefined || typeof value === 'object' && !isBinary(value)) {
           throw new DOMException('Not a file', 'NotFoundError')
@@ -149,6 +149,11 @@ export async function installFakePicker(page: Page, folder: FakeFolder): Promise
         return isBinary(value)
           ? makeBinaryHandle(childName, value)
           : makeFileHandle(childName, childPath, value as string)
+      },
+      async removeEntry(childName: string) {
+        if (contents[childName] === undefined) throw new DOMException('Not found', 'NotFoundError')
+        delete contents[childName]
+        states.delete(path === '' ? childName : path + '/' + childName)
       },
       async queryPermission() {
         return 'granted' as const

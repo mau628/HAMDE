@@ -508,6 +508,51 @@ body {
   white-space: nowrap;
 }
 
+/* File actions sit over the end of the row and show on hover or keyboard focus. */
+.node {
+  position: relative;
+}
+
+.node__actions {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  display: none;
+  gap: 2px;
+  align-items: center;
+  height: 100%;
+  padding-left: 6px;
+  background: var(--color-selection);
+}
+
+.node:hover > .node__actions,
+.node:focus-within > .node__actions {
+  display: flex;
+}
+
+.node__action {
+  display: inline-flex;
+  padding: 2px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+}
+
+.node__action:hover:not(:disabled) {
+  color: var(--color-accent);
+}
+
+.node__action--danger:hover:not(:disabled) {
+  color: #d92d20;
+}
+
+.node__action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .node__empty {
   padding: 2px 6px;
   font-size: 12px;
