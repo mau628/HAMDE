@@ -188,6 +188,11 @@
   accent-color: var(--color-accent);
 }
 
+/* In a table cell the space after the marker is not drawn, so the gap is here. */
+.cm-editor .cm-md-table__cell .cm-md-task-checkbox {
+  margin-right: 0.4em;
+}
+
 /* A completed task recedes, so a long list reads at a glance. */
 .cm-editor .cm-md-task-done {
   color: var(--color-text-muted);

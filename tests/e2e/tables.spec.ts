@@ -103,6 +103,41 @@ test('renders the inline Markdown inside a cell', async ({ page }) => {
   await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
 })
 
+test('renders a task marker in a cell as a checkbox, and clicking it toggles the task', async ({
+  page,
+}) => {
+  const doc = [
+    '| [ ] | IP | Name |',
+    '| --- | --- | --- |',
+    '| [x] | 192.168.93.71 | PORTAL |',
+    '| [ ] | 192.168.93.74 | RDSH1 |',
+    '',
+    'tail',
+    '',
+  ].join('\n')
+
+  await open(page, doc)
+  await expect(grid(page)).toBeVisible()
+
+  const boxes = grid(page).locator('.cm-md-task-checkbox')
+  await expect(boxes).toHaveCount(3)
+  await expect(boxes.nth(1)).toBeChecked()
+  await expect(boxes.nth(2)).not.toBeChecked()
+  // The marker itself is not drawn as text.
+  await expect(grid(page).locator('tbody td').first()).toHaveText('')
+
+  await boxes.nth(2).click()
+
+  // The table stays rendered — the cursor did not move into it — and shows the change.
+  await expect(grid(page).locator('.cm-md-task-checkbox').nth(2)).toBeChecked()
+  await expect(page.locator('.status__state')).toHaveText('Saved')
+  const saved = await page.evaluate(
+    () =>
+      (window as unknown as { __writtenFiles: Map<string, string> }).__writtenFiles.get('table.md'),
+  )
+  expect(saved).toContain('| [x] | 192.168.93.74 | RDSH1 |')
+})
+
 test('shows the source when the cursor is inside the table', async ({ page }) => {
   await open(page)
   await expect(grid(page)).toBeVisible()

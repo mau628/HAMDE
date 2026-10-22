@@ -195,3 +195,33 @@ function fit(cells: TableCellRange[], columnCount: number): TableCellRange[] {
   }
   return fitted
 }
+
+/** A cell that opens with a task marker, as positions in the document. */
+export interface CellTask {
+  /** Where the `[` is. */
+  from: number
+  /** Where the rest of the cell's content begins, past the marker and one space. */
+  contentFrom: number
+  checked: boolean
+}
+
+/**
+ * The task marker a cell opens with — `[ ]`, `[x]` or `[X]` — if it has one.
+ *
+ * GFM only makes a task of a list item, but a table of things to tick off is a
+ * common way to track them, and in a rendered grid a literal `[x]` reads as noise.
+ * The marker has to stand alone, followed by a space or the end of the cell, so
+ * `[x](url)` stays a link and `[x]y` stays text.
+ */
+export function cellTask(state: EditorState, cell: TableCellRange): CellTask | null {
+  const text = state.doc.sliceString(cell.from, cell.to)
+  const match = /^\[([ xX])\](?= |$)/.exec(text)
+  if (match === null) return null
+
+  const end = cell.from + 3
+  return {
+    from: cell.from,
+    contentFrom: Math.min(text.length > 3 ? end + 1 : end, cell.to),
+    checked: match[1] !== ' ',
+  }
+}
