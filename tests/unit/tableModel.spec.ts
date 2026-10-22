@@ -4,6 +4,7 @@ import type { SyntaxNode } from '@lezer/common'
 import { describe, expect, it } from 'vitest'
 
 import {
+  cellTask,
   isRenderableTable,
   tableModel,
   type TableModel,
@@ -167,5 +168,43 @@ describe('alignment', () => {
   it('has one entry per column', () => {
     const model = modelFor(table('| a | b | c |', '| - | - | - |', '| 1 | 2 | 3 |'))
     expect(model?.columns).toHaveLength(3)
+  })
+})
+
+describe('task markers in cells', () => {
+  /** The task, if any, of the first cell of the first body row. */
+  function taskOf(cell: string) {
+    const doc = table('| a | b |', '| - | - |', '| ' + cell + ' | z |')
+    const state = stateFor(doc)
+    const range = tableModel(state, tableNode(state)!)?.rows[0]?.[0]
+    if (range === undefined) throw new Error('not a table')
+    const task = cellTask(state, range)
+    return task === null ? null : { ...task, rest: doc.slice(task.contentFrom, range.to) }
+  }
+
+  it('reads a checked and an unchecked marker', () => {
+    expect(taskOf('[x] 192.168.93.71')).toMatchObject({ checked: true, rest: '192.168.93.71' })
+    expect(taskOf('[X] done')).toMatchObject({ checked: true, rest: 'done' })
+    expect(taskOf('[ ] open')).toMatchObject({ checked: false, rest: 'open' })
+  })
+
+  it('reads a marker that is the whole cell', () => {
+    expect(taskOf('[x]')).toMatchObject({ checked: true, rest: '' })
+    expect(taskOf('[ ]')).toMatchObject({ checked: false, rest: '' })
+  })
+
+  it('points at the opening bracket', () => {
+    const doc = table('| a |', '| - |', '| [x] |')
+    const state = stateFor(doc)
+    const range = tableModel(state, tableNode(state)!)?.rows[0]?.[0]
+    const task = range === undefined ? null : cellTask(state, range)
+    expect(doc.slice(task?.from, (task?.from ?? 0) + 3)).toBe('[x]')
+  })
+
+  it('leaves a link, a longer label and text glued to the marker alone', () => {
+    expect(taskOf('[x](https://example.com)')).toBeNull()
+    expect(taskOf('[xy] label')).toBeNull()
+    expect(taskOf('[x]y')).toBeNull()
+    expect(taskOf('text [x]')).toBeNull()
   })
 })
