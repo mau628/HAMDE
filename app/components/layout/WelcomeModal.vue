@@ -4,7 +4,7 @@ const VISITS_KEY = 'hamde:visits'
 
 const emit = defineEmits<{ 'update:highlight': [value: boolean] }>()
 
-const { repoUrl, coffeeUrl, welcomeMinVisits } = useRuntimeConfig().public
+const { coffeeUrl, welcomeMinVisits } = useRuntimeConfig().public
 
 const open = ref(false)
 const dontShowAgain = ref(false)
@@ -79,9 +79,7 @@ function close() {
       <p>
         This is a free project that aims to make managing markdown files easy and safe,
         so they never leave your local device and can't leak to the cloud. You can
-        contribute on the repo
-        <a :href="repoUrl" target="_blank" rel="noopener noreferrer">{{ repoUrl }}</a>
-        and you can also buy me a coffee if you like it and find it useful
+        buy me a coffee if you like it and find it useful
         <a :href="coffeeUrl" target="_blank" rel="noopener noreferrer">{{ coffeeUrl }}</a>.
       </p>
 
