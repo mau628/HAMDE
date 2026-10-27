@@ -28,8 +28,53 @@ onMounted(() => {
   }
 })
 
+/**
+ * Hovering the collapsed rail shows the full panel over the editor for a while.
+ * 'closing' keeps the full layout on screen while it slides back into the rail.
+ */
+const peek = ref<'off' | 'open' | 'closing'>('off')
+const PEEK_OPEN_DELAY = 120
+const PEEK_CLOSE_DURATION = 200
+
+/** Set by the toggle so the panel just collapsed under the pointer does not pop back out. */
+let peekSuppressed = false
+let peekTimer: ReturnType<typeof setTimeout> | undefined
+
+function clearPeekTimer(): void {
+  clearTimeout(peekTimer)
+  peekTimer = undefined
+}
+
+function onExplorerEnter(event: PointerEvent): void {
+  // Touch and pen taps would leave the panel stuck open; the button covers them.
+  if (event.pointerType !== 'mouse' || !collapsed.value || peekSuppressed) return
+  clearPeekTimer()
+  if (peek.value === 'closing') {
+    peek.value = 'open'
+    return
+  }
+  peekTimer = setTimeout(() => {
+    peek.value = 'open'
+  }, PEEK_OPEN_DELAY)
+}
+
+function onExplorerLeave(): void {
+  peekSuppressed = false
+  clearPeekTimer()
+  if (peek.value !== 'open') return
+  peek.value = 'closing'
+  peekTimer = setTimeout(() => {
+    peek.value = 'off'
+  }, PEEK_CLOSE_DURATION)
+}
+
+onBeforeUnmount(clearPeekTimer)
+
 function toggleSidebar(): void {
+  clearPeekTimer()
+  peek.value = 'off'
   sidebarCollapsed.value = !sidebarCollapsed.value
+  peekSuppressed = sidebarCollapsed.value
   try {
     localStorage.setItem(COLLAPSED_KEY, sidebarCollapsed.value ? '1' : '0')
   } catch {
@@ -60,8 +105,20 @@ function onChange(text: string) {
 </script>
 
 <template>
-  <div class="shell" :class="{ 'shell--collapsed': collapsed }">
-    <aside class="shell__explorer" aria-label="Files">
+  <div
+    class="shell"
+    :class="{
+      'shell--collapsed': collapsed,
+      'shell--peek': collapsed && peek !== 'off',
+      'shell--peek-closing': collapsed && peek === 'closing',
+    }"
+  >
+    <aside
+      class="shell__explorer"
+      aria-label="Files"
+      @pointerenter="onExplorerEnter"
+      @pointerleave="onExplorerLeave"
+    >
       <h1 class="shell__title" title="Here's Another Markdown Editor">
         <img class="shell__logo" :src="logoSrc" alt="" width="96" height="96" />
         <span class="shell__name">HAMDE</span>
