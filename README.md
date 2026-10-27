@@ -6,15 +6,10 @@
 
 *Here's Another Markdown Editor.*
 
-**[Try it live → hamde.mau628.com](https://hamde.mau628.com)** · **[VS Code extension](#vs-code-extension)**
+**[Try it live → hamde.mau628.com](https://hamde.mau628.com)**
 
 A free, open-source, local-first Markdown editor with an Obsidian-style live preview.
-It comes in two forms that share one editor:
-
-- **A web app** that runs entirely in your browser and edits the files in a folder
-  on your own disk.
-- **A VS Code extension** that opens `.md` files in the same live preview, with
-  VS Code in charge of the files.
+It runs entirely in your browser and edits the files in a folder on your own disk.
 
 No backend, no account, no upload. Once the editor has loaded, the only thing it ever
 asks the network for is an image that a document itself points to on the web.
@@ -41,20 +36,15 @@ flowchart LR
 
 ## Requirements
 
-For the web app, a Chromium-based browser. It is built on the
+A Chromium-based browser. It is built on the
 [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker),
 which Firefox and Safari do not implement. This is a deliberate scope decision, not
 an oversight: that API is what makes editing your own files possible without a
 server in the middle.
 
-For the extension, VS Code 1.100 or newer.
-
 Node.js 24.11 or newer for development.
 
 ## What it does
-
-This is the web app; the extension renders the same Markdown and leaves folders,
-saving and themes to VS Code (see [VS Code extension](#vs-code-extension)).
 
 - **Open a folder** and browse it. Directories are read one level at a time, so a
   folder with thousands of notes opens immediately.
@@ -112,13 +102,6 @@ welcome dialog is hidden (localStorage). See [docs/security.md](docs/security.md
 - Follow a link whose protocol is not http, https or mailto.
 - Rewrite parts of a file you did not edit — including its line endings.
 
-## VS Code extension
-
-The same editor is also a VS Code extension, in [`vscode/`](vscode). It opens `.md`
-files in the live preview and leaves the files to VS Code: saving, undo, and the
-explorer are VS Code's own. It bundles the editor from this repository directly, so
-the two never drift apart. See [docs/vscode-extension.md](docs/vscode-extension.md).
-
 ## Commands
 
 | Command                          | What it does                                                       |
@@ -126,16 +109,11 @@ the two never drift apart. See [docs/vscode-extension.md](docs/vscode-extension.
 | `npm run dev`                    | Development server                                                 |
 | `npm run generate`               | Static build into `.output/public`, then applies CSP script hashes |
 | `npm run serve:static`           | Serves `.output/public` exactly as a static host would             |
-| `npm run typecheck`              | `vue-tsc --noEmit`, then `tsc` over the extension                  |
+| `npm run typecheck`              | `vue-tsc --noEmit`                                                 |
 | `npm run test`                   | Unit tests (Vitest)                                                |
-| `npm run test:e2e`               | Builds both, then runs browser tests (Playwright/Chromium)         |
+| `npm run test:e2e`               | Builds the site, then runs browser tests (Playwright/Chromium)     |
 | `npm run check:offline`          | Fails if the build references any remote origin                    |
-| `npm run build:vscode`           | Production build of the extension into `vscode/dist`               |
-| `npm run check:offline:vscode`   | The same offline check, on the extension's bundle                  |
-| `npm run package -w vscode`      | Packs the extension into `vscode/hamde-vscode-<version>.vsix`      |
-| `npm run test:smoke -w vscode`   | Runs the extension's smoke tests inside a real VS Code             |
-| `npm run test:editing -w vscode` | Types, saves and undoes in a real VS Code window                   |
-| `npm run verify`                 | typecheck + unit tests + both builds + both offline checks         |
+| `npm run verify`                 | typecheck + unit tests + build + offline check                     |
 
 ## Documentation
 
@@ -145,8 +123,6 @@ the two never drift apart. See [docs/vscode-extension.md](docs/vscode-extension.
   including the ones that are compromises
 - [docs/dependencies.md](docs/dependencies.md) — why each dependency exists, what was
   rejected, and what the build actually weighs
-- [docs/vscode-extension.md](docs/vscode-extension.md) — how the VS Code extension
-  shares the editor, and how it keeps its copy of a document equal to VS Code's
 
 ## Status
 

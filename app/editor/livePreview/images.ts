@@ -30,20 +30,6 @@ export const imageResolver = Facet.define<ImageResolver, ImageResolver | null>({
   combine: (values) => values[0] ?? null,
 })
 
-/** Decides whether a source is one the resolver should be asked about. */
-export type ImageSourceFilter = (source: string) => boolean
-
-/**
- * Which sources are rendered at all; the rest stay as Markdown.
- *
- * The browser app can read only inside the folder it was granted, so the default
- * refuses anything that leaves it. A host that enforces a boundary of its own
- * supplies its own rule.
- */
-export const imageSourceFilter = Facet.define<ImageSourceFilter, ImageSourceFilter>({
-  combine: (values) => values[0] ?? isWorkspacePath,
-})
-
 /** Says how a source is loaded, or `null` if it is one the editor does not show. */
 export type ImageLoader = (source: string) => ImageResolver | null
 
@@ -53,16 +39,17 @@ const loadRemote: ImageResolver = async (source) => source.trim()
 /**
  * How the images of a document are loaded, decided once for a given state.
  *
- * The facets are read here rather than at each image, so a widget can keep the
+ * The facet is read here rather than at each image, so a widget can keep the
  * result without keeping the state it came from.
  */
 export function imageLoader(state: EditorState): ImageLoader {
   const resolve = state.facet(imageResolver)
-  const accepts = state.facet(imageSourceFilter)
 
   return (source) => {
     if (isRemoteImage(source)) return loadRemote
-    return resolve !== null && accepts(source) ? resolve : null
+    // The app can read only inside the folder it was granted, so a path that
+    // leaves it stays as Markdown.
+    return resolve !== null && isWorkspacePath(source) ? resolve : null
   }
 }
 

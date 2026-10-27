@@ -1,8 +1,7 @@
 /*
  * Design tokens. No remote fonts, no icon fonts, no CSS frameworks.
  *
- * In a file of their own because the editor reads them wherever it runs: this app
- * loads them here, and the VS Code extension's webview loads the same file.
+ * In a file of their own so the editor core reads them without the app's styles.
  */
 :root {
   --font-ui: system-ui, sans-serif;

@@ -2,8 +2,8 @@
  * Which theme is in effect, and remembering the user's choice.
  *
  * Kept free of Vue and Nuxt: the editor core asks for the theme when it renders a
- * diagram, and that core also runs outside this app, in the VS Code extension's
- * webview. The reactive wrapper for the app's own UI is `useTheme`.
+ * diagram, and that core stays independent of the framework. The reactive wrapper
+ * for the app's own UI is `useTheme`.
  */
 
 export type Theme = 'light' | 'dark'

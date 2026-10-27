@@ -12,7 +12,7 @@ import { mermaidRenderer } from './mermaid'
 import { isPrinting, printingField } from './reveal'
 import { tableRenderer } from './table'
 
-export { followLink, linkOpener, type LinkOpener } from './linkFollow'
+export { followLink } from './linkFollow'
 
 /**
  * Obsidian-style live preview.
