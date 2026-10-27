@@ -1,9 +1,10 @@
 <script setup lang="ts">
 const STORAGE_KEY = 'hamde:hide-welcome'
+const VISITS_KEY = 'hamde:visits'
 
 const emit = defineEmits<{ 'update:highlight': [value: boolean] }>()
 
-const { repoUrl, coffeeUrl } = useRuntimeConfig().public
+const { repoUrl, coffeeUrl, welcomeMinVisits } = useRuntimeConfig().public
 
 const open = ref(false)
 const dontShowAgain = ref(false)
@@ -26,8 +27,26 @@ function writePreference(hide: boolean) {
   }
 }
 
+/**
+ * Counts this visit and returns the running total. Stops counting at `cap`, which
+ * is all the dialog needs to know. Without storage it returns 0: with no way to
+ * tell a returning visitor from a new one, the dialog stays closed.
+ */
+function countVisit(cap: number): number {
+  try {
+    const previous = Number.parseInt(localStorage.getItem(VISITS_KEY) ?? '0', 10) || 0
+    const visits = Math.min(previous + 1, cap)
+    localStorage.setItem(VISITS_KEY, String(visits))
+    return visits
+  } catch {
+    return 0
+  }
+}
+
 onMounted(async () => {
   if (readPreference()) return
+  const minVisits = Math.max(1, Number(welcomeMinVisits) || 1)
+  if (countVisit(minVisits) < minVisits) return
   open.value = true
   await nextTick()
   acceptButton.value?.focus()
