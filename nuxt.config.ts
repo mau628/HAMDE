@@ -51,11 +51,15 @@ export default defineNuxtConfig({
   // Nuxt DevTools phones home for its own updates; keep the app network-free.
   devtools: { enabled: false },
 
-  // Overridable at build time with NUXT_PUBLIC_REPO_URL / NUXT_PUBLIC_COFFEE_URL.
+  // Overridable at build time with NUXT_PUBLIC_REPO_URL / NUXT_PUBLIC_COFFEE_URL /
+  // NUXT_PUBLIC_WELCOME_MIN_VISITS.
   runtimeConfig: {
     public: {
       repoUrl: 'https://github.com/Mau628/hamde',
       coffeeUrl: 'https://buymeacoffee.com/mau628',
+      // The welcome dialog first opens on this visit (1 = the very first), so it
+      // only reaches people who keep coming back.
+      welcomeMinVisits: 5,
     },
   },
 

@@ -126,7 +126,7 @@ loaded.
 
 ## What stays in the browser
 
-Nothing from a note is ever stored. Three things are, all local to the browser
+Nothing from a note is ever stored. Four things are, all local to the browser
 profile and none sent anywhere:
 
 | What | Where | Why |
@@ -134,6 +134,7 @@ profile and none sent anywhere:
 | The last folder's `FileSystemDirectoryHandle` | IndexedDB (`hamde` / `handles`) | To reopen the folder on the next visit. A handle is an opaque reference; Chrome still asks for permission again, and "Close folder" deletes it. |
 | Theme, editor width | `localStorage` (`hamde-theme`, `hamde.editorWide`) | Per-viewer preferences. |
 | Whether the welcome dialog is hidden | `localStorage` (`hamde:hide-welcome`) | So it is not shown every visit. |
+| How many times HAMDE has been opened, capped at `welcomeMinVisits` | `localStorage` (`hamde:visits`) | The welcome dialog waits until that visit. |
 
 Every read and write is wrapped so that blocked or unavailable storage (private
 mode, quota) degrades to the defaults instead of an error.
