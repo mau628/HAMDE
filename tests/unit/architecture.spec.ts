@@ -65,12 +65,11 @@ describe('file system boundary', () => {
 })
 
 /**
- * Enforces the boundary that lets the editor run outside this app: everything under
- * app/editor, and the few services it uses, must work without Vue, Nuxt or the file
- * system service. The VS Code extension bundles exactly these files into its webview.
+ * Enforces the boundary that keeps the editor independent of this app: everything
+ * under app/editor, and the few services it uses, must work without Vue, Nuxt or the
+ * file system service.
  *
- * Auto-imports are the other way to break this, and a scan cannot see them; the
- * extension's own typecheck (vscode/tsconfig.json), which has no Nuxt globals, does.
+ * Auto-imports are the other way to break this, and this scan cannot see them.
  */
 describe('editor core boundary', () => {
   const CORE = 'app/editor/'

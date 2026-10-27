@@ -232,7 +232,6 @@ split across pages when they fit on one.
   It throws that switch itself when a print is announced, and back half a second
   later, which is not long enough to load an image in. The dependency is pinned and
   `tests/e2e/print.spec.ts` fails if an upgrade moves it.
-- **The VS Code extension does not print.** A webview cannot open a print dialog.
 
 ## Tables
 

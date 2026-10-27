@@ -5,8 +5,7 @@
  * "No network after load" is a product requirement, so it is enforced
  * mechanically rather than by convention or code review.
  *
- * Scans the web build by default; pass a directory to scan another one, which is
- * how the VS Code extension's bundle is held to the same rule.
+ * Scans the web build by default; pass a directory to scan another one.
  */
 import { readdir, readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
