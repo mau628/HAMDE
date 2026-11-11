@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Annotation, EditorState } from '@codemirror/state'
+import { Annotation, Compartment, EditorState } from '@codemirror/state'
 import { EditorView, type ViewUpdate } from '@codemirror/view'
 
 import { createEditorExtensions } from '~/editor/editorConfig'
@@ -10,6 +10,8 @@ import { MOD_KEY_LABEL } from '~/services/links'
 const props = defineProps<{
   /** The document's Markdown source. */
   doc: string
+  /** Shows the document without letting it be typed into. The cursor still moves. */
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -85,7 +87,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
  * Read at call time, so the editor does not need rebuilding when either changes.
  */
 function resolveImage(source: string) {
-  return loadWorkspaceImage(root.value, activeDocument.value?.file.path ?? '', source)
+  const file = activeDocument.value?.file
+  // A dropped file comes from outside the folder: its relative images are not in
+  // it, and nothing else of that file's surroundings was handed to the app.
+  if (file?.externalId !== undefined) return Promise.resolve(null)
+  return loadWorkspaceImage(root.value, file?.path ?? '', source)
+}
+
+/** Holds the read-only flag, so it can change without rebuilding the editor. */
+const readOnlyCompartment = new Compartment()
+
+function readOnlyExtension(readOnly: boolean) {
+  // `readOnly` rather than `editable: false`: the document still takes a cursor, so
+  // the line under it reveals its syntax and the keyboard moves through it.
+  return EditorState.readOnly.of(readOnly)
 }
 
 function isProgrammatic(update: ViewUpdate): boolean {
@@ -98,6 +113,7 @@ onMounted(() => {
       doc: props.doc,
       extensions: [
         ...createEditorExtensions({ resolveImage, toggleWidth }),
+        readOnlyCompartment.of(readOnlyExtension(props.readOnly === true)),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isProgrammatic(update)) {
             emit('change', update.state.doc.toString())
@@ -132,10 +148,17 @@ watch(
     })
   },
 )
+
+watch(
+  () => props.readOnly === true,
+  (readOnly) => {
+    view?.dispatch({ effects: readOnlyCompartment.reconfigure(readOnlyExtension(readOnly)) })
+  },
+)
 </script>
 
 <template>
-  <div class="editor" :class="{ 'editor--wide': wide }">
+  <div class="editor" :class="{ 'editor--wide': wide, 'editor--readonly': readOnly }">
     <div ref="host" class="editor__host" />
     <div class="editor__tools">
       <button

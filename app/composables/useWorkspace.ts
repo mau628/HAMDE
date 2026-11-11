@@ -1,10 +1,12 @@
 import { fileSystemService, isHiddenEntry, isMarkdownFile } from '~/services/fileSystemService'
 import { releaseImages } from '~/services/imageService'
-import type { DirectoryNode, FileNode, FileTreeNode } from '~/types/fileSystem'
+import { isSameFile, type DirectoryNode, type FileNode, type FileTreeNode } from '~/types/fileSystem'
 
 export type WorkspaceError =
   | { kind: 'unsupported' }
   | { kind: 'permission-denied' }
+  /** Something other than a Markdown file was dropped onto the app. */
+  | { kind: 'not-markdown'; names: string[] }
   | { kind: 'read-failed'; path: string; message: string }
 
 /**
@@ -25,6 +27,11 @@ export function useWorkspace() {
   /** Paths of the directories the user has expanded. View state, not file state. */
   const expandedPaths = useState<string[]>('workspace:expanded', () => [])
   const busy = useState<boolean>('workspace:busy', () => false)
+  /**
+   * Files dropped onto the app that are not part of the open folder, in the order
+   * they arrived. Listed apart from the tree; forgotten on reload.
+   */
+  const externalFiles = useState<FileNode[]>('workspace:external', () => [])
 
   const isSupported = computed(() => fileSystemService.isSupported())
 
@@ -59,7 +66,7 @@ export function useWorkspace() {
     }
 
     // Leaving a folder abandons the open document, so it has to be saved first.
-    if (!(await openDocuments.closeDocument())) return
+    if (!(await closeWorkspaceDocument())) return
 
     busy.value = true
     try {
@@ -132,7 +139,8 @@ export function useWorkspace() {
     // The first file in the explorer's order. Directories sort first, so this is
     // the first file among the root's children, not necessarily the first row.
     const first = recalled.children?.find((child): child is FileNode => child.kind === 'file')
-    if (first !== undefined) {
+    // A file dropped while permission was being asked for is the one the user wants.
+    if (first !== undefined && openDocuments.activeDocument.value === null) {
       await openFile(first)
       // Nobody asked for this file, so a failure to read it is not worth a message.
       error.value = null
@@ -148,13 +156,22 @@ export function useWorkspace() {
    */
   async function closeFolder(): Promise<void> {
     if (root.value === null) return
-    if (!(await openDocuments.closeDocument())) return
+    if (!(await closeWorkspaceDocument())) return
 
     releaseImages()
     root.value = null
     expandedPaths.value = []
     error.value = null
     await fileSystemService.forgetDirectory()
+  }
+
+  /**
+   * Closes the open document if it belongs to the folder. A dropped file is not
+   * part of any folder, so it stays open when the folder changes.
+   */
+  async function closeWorkspaceDocument(): Promise<boolean> {
+    if (openDocuments.activeDocument.value?.file.externalId !== undefined) return true
+    return openDocuments.closeDocument()
   }
 
   async function toggleDirectory(directory: DirectoryNode): Promise<void> {
@@ -273,7 +290,8 @@ export function useWorkspace() {
     const fileName = toMarkdownFileName(rawName)
     if (fileName === null || fileName === file.name || !confirm(fileName)) return
 
-    const wasOpen = openDocuments.activeDocument.value?.file.path === file.path
+    const active = openDocuments.activeDocument.value
+    const wasOpen = active !== null && isSameFile(active.file, file)
     if (wasOpen && !(await openDocuments.closeDocument())) return
 
     error.value = null
@@ -301,7 +319,8 @@ export function useWorkspace() {
   async function deleteFile(file: FileNode): Promise<void> {
     if (root.value === null) return
 
-    if (openDocuments.activeDocument.value?.file.path === file.path) {
+    const active = openDocuments.activeDocument.value
+    if (active !== null && isSameFile(active.file, file)) {
       await openDocuments.discardDocument()
     }
 
@@ -317,8 +336,98 @@ export function useWorkspace() {
     }
   }
 
+  /**
+   * Opens the Markdown files dropped onto the app, the first one in the editor.
+   *
+   * Call it from the `drop` handler itself, not after an await: the browser hands
+   * over the files only while that event is being handled. A file that lives in the
+   * open folder opens as part of it; any other is listed under the tree, apart.
+   */
+  async function openDroppedFiles(transfer: DataTransfer): Promise<void> {
+    // Started before anything is awaited, for the reason above.
+    const dropping = fileSystemService.filesFromDrop(transfer)
+    error.value = null
+
+    let dropped
+    try {
+      dropped = await dropping
+    } catch (cause) {
+      error.value = toWorkspaceError(cause, '')
+      return
+    }
+
+    let first: FileNode | null = null
+    for (const file of dropped.files) {
+      withRawHandle(file)
+      const node = (await findInWorkspace(file)) ?? (await addExternalFile(file))
+      first ??= node
+    }
+
+    if (first !== null) await openFile(first)
+    // Reported after opening, which clears the error.
+    if (dropped.rejected.length > 0 && error.value === null) {
+      error.value = { kind: 'not-markdown', names: dropped.rejected }
+    }
+  }
+
+  /**
+   * The tree's node for a dropped file that lives in the open folder, with the
+   * directories leading to it expanded. `null` when it lives elsewhere, or somewhere
+   * the tree does not show, such as a hidden folder.
+   */
+  async function findInWorkspace(file: FileNode): Promise<FileNode | null> {
+    const directory = root.value
+    if (directory === null) return null
+
+    const segments = await fileSystemService.locateInDirectory(directory, file)
+    if (segments === null || segments.length === 0) return null
+
+    try {
+      let current = directory
+      const opened: string[] = []
+      for (const segment of segments.slice(0, -1)) {
+        await loadChildren(current)
+        const next = current.children?.find(
+          (child): child is DirectoryNode => child.kind === 'directory' && child.name === segment,
+        )
+        if (next === undefined) return null
+        opened.push(next.path)
+        current = next
+      }
+      await loadChildren(current)
+      const node = current.children?.find(
+        (child): child is FileNode => child.kind === 'file' && child.name === segments.at(-1),
+      )
+      if (node === undefined) return null
+
+      expandedPaths.value = [...new Set([...expandedPaths.value, ...opened])]
+      return node
+    } catch {
+      return null
+    }
+  }
+
+  /** Lists a dropped file apart from the tree, once: dropping it again finds the first. */
+  async function addExternalFile(file: FileNode): Promise<FileNode> {
+    for (const known of externalFiles.value) {
+      if (await fileSystemService.isSameEntry(known, file)) return known
+    }
+    externalFiles.value = [...externalFiles.value, file]
+    return file
+  }
+
+  /** Takes a dropped file off the list, saving and closing it first if it is open. */
+  async function closeExternalFile(file: FileNode): Promise<void> {
+    const active = openDocuments.activeDocument.value
+    if (active !== null && isSameFile(active.file, file)) {
+      if (!(await openDocuments.closeDocument())) return
+    }
+    externalFiles.value = externalFiles.value.filter((known) => !isSameFile(known, file))
+  }
+
   return {
     root,
+    externalFiles,
     error: readonly(error),
     busy: readonly(busy),
     isSupported,
@@ -332,6 +441,8 @@ export function useWorkspace() {
     createFile,
     renameFile,
     deleteFile,
+    openDroppedFiles,
+    closeExternalFile,
   }
 }
 

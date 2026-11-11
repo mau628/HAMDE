@@ -117,7 +117,9 @@ export class CheckboxWidget extends WidgetType {
     // The position is read from the DOM at click time. A widget CodeMirror reused
     // elsewhere in the document would otherwise toggle the task it used to be on.
     const position = positionOf(view, checkbox)
-    const toggle = position === null ? null : taskToggleAt(view.state, position)
+    // A read-only document keeps its checkboxes as they are on disk.
+    const toggle =
+      position === null || view.state.readOnly ? null : taskToggleAt(view.state, position)
 
     if (toggle === null) {
       // Nothing was changed, so undo the browser's optimistic flip.

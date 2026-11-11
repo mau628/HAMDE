@@ -1,5 +1,6 @@
 import type {
   DirectoryNode,
+  DroppedFiles,
   FileNode,
   FileStamp,
   FileSystemService,
@@ -90,6 +91,12 @@ function stampOf(file: File): FileStamp {
 function sameStamp(a: FileStamp, b: FileStamp): boolean {
   return a.lastModified === b.lastModified && a.size === b.size
 }
+
+/** Dropped files are numbered so two with the same name stay apart. */
+let nextExternalId = 1
+
+/** Chromium's `DataTransferItem.getAsFileSystemHandle`, which TypeScript does not know yet. */
+type HandleItem = DataTransferItem & { getAsFileSystemHandle?: () => Promise<FileSystemHandle | null> }
 
 const DATABASE = 'hamde'
 const STORE = 'handles'
@@ -285,6 +292,62 @@ export function createFileSystemService(): FileSystemService {
 
     async deleteFile(root: DirectoryNode, file: FileNode) {
       await (await parentHandleOf(root, file.path)).removeEntry(file.name)
+    },
+
+    async filesFromDrop(transfer: DataTransfer): Promise<DroppedFiles> {
+      // Every handle is asked for now, synchronously: once the drop handler returns
+      // the browser empties `transfer`, and an item read after an await is gone.
+      const pending = [...transfer.items]
+        .filter((item) => item.kind === 'file')
+        .map((item) => (item as HandleItem).getAsFileSystemHandle?.() ?? Promise.resolve(null))
+
+      const files: FileNode[] = []
+      const rejected: string[] = []
+      for (const result of await Promise.allSettled(pending)) {
+        const handle = result.status === 'fulfilled' ? result.value : null
+        if (handle === null) continue
+        if (handle.kind !== 'file' || !isMarkdownFile(handle.name)) {
+          rejected.push(handle.name)
+          continue
+        }
+        files.push({
+          kind: 'file',
+          name: handle.name,
+          path: handle.name,
+          handle: handle as FileSystemFileHandle,
+          externalId: nextExternalId++,
+        })
+      }
+      return { files, rejected }
+    },
+
+    async locateInDirectory(directory: DirectoryNode, file: FileNode) {
+      // `resolve` is Chromium's: it answers with the path between the two handles.
+      const resolvable = directory.handle as FileSystemDirectoryHandle & {
+        resolve?: (handle: FileSystemHandle) => Promise<string[] | null>
+      }
+      if (typeof resolvable.resolve !== 'function') return null
+      try {
+        return await resolvable.resolve(file.handle)
+      } catch {
+        return null
+      }
+    },
+
+    async isSameEntry(a: FileNode, b: FileNode) {
+      try {
+        return await a.handle.isSameEntry(b.handle)
+      } catch {
+        return false
+      }
+    },
+
+    async hasWritePermission(file: FileNode) {
+      try {
+        return (await file.handle.queryPermission({ mode: 'readwrite' })) === 'granted'
+      } catch {
+        return false
+      }
     },
 
     async ensureWritePermission(node: FileTreeNode) {

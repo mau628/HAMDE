@@ -163,6 +163,13 @@ Two properties of the write path matter for data safety:
   refuses to overwrite a file that changed underneath. Conflict handling has been
   part of the contract since the function existed; M4 adds the resolution UI.
 
+A file dropped onto the page reaches the app the same way, as a handle from
+`DataTransferItem.getAsFileSystemHandle`, and goes through the same write path. The
+browser grants a dropped file read access only. The app never asks for more on its
+own: the file opens read-only, and write access is requested only when the user
+clicks "Allow editing". A dropped file gives no access to the folder it sits in, so
+its relative images are not shown.
+
 ## Autosave and data loss
 
 Autosave is an explicit state machine in `app/services/autoSave.ts`, kept free of

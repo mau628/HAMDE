@@ -60,11 +60,16 @@ export function useDocument() {
 
     try {
       const { text, stamp } = await fileSystemService.readFile(file)
+      // A dropped file comes with read access only. It opens read-only until the
+      // user allows writing, rather than letting them type into a file that then
+      // cannot be saved.
+      const readOnly = file.externalId !== undefined && !(await fileSystemService.hasWritePermission(file))
       activeDocument.value = {
         file,
         text: toLf(text),
         stamp,
         lineEnding: detectLineEnding(text),
+        readOnly,
       }
       getController().attach(file, stamp)
       return true
@@ -77,10 +82,30 @@ export function useDocument() {
   /** Records an edit from the editor. Debounced writing happens in the controller. */
   function edit(text: string): void {
     const open = activeDocument.value
-    if (open === null) return
+    if (open === null || open.readOnly) return
 
     open.text = text
     getController().edit(text)
+  }
+
+  /**
+   * Asks for write permission on a read-only document, and makes it editable if
+   * granted. Must run inside a user gesture: the browser prompts only from one.
+   */
+  async function enableEditing(): Promise<boolean> {
+    const open = activeDocument.value
+    if (open === null) return false
+    if (!open.readOnly) return true
+
+    let granted = false
+    try {
+      granted = await fileSystemService.ensureWritePermission(open.file)
+    } catch {
+      granted = false
+    }
+    // The user may have switched documents while the prompt was up.
+    if (granted && activeDocument.value === open) open.readOnly = false
+    return granted
   }
 
   /** Writes pending text now, for Ctrl+S and for losing focus. */
@@ -121,6 +146,7 @@ export function useDocument() {
         text: toLf(text),
         stamp,
         lineEnding: detectLineEnding(text),
+        readOnly: open.readOnly,
       }
       controllerRef.attach(open.file, stamp)
     } catch (cause) {
@@ -159,6 +185,7 @@ export function useDocument() {
     closeDocument,
     discardDocument,
     edit,
+    enableEditing,
     saveNow,
     overwriteOnDisk,
     reloadFromDisk,

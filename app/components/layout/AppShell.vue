@@ -2,7 +2,8 @@
 import { welcomeDocument } from '~/editor/welcomeDocument'
 
 const { theme, toggle: toggleTheme } = useTheme()
-const { root, error, busy, isSupported, openFolder, restoreLastFolder, closeFolder } = useWorkspace()
+const { root, error, busy, isSupported, openFolder, restoreLastFolder, closeFolder, openDroppedFiles } =
+  useWorkspace()
 const { activeDocument, edit } = useDocument()
 
 const config = useRuntimeConfig()
@@ -90,6 +91,67 @@ onMounted(() => {
 // Ctrl+S, save on blur, save before the page closes.
 useAutoSave()
 
+/**
+ * Dropping a Markdown file anywhere on the page opens it.
+ *
+ * The listeners are on the window, in the capture phase, so they run before the
+ * editor's own: CodeMirror would otherwise paste the dropped file's text into the
+ * open document. Only drags that carry files are taken; dragging selected text
+ * inside the editor still moves it as before.
+ */
+const dragging = ref(false)
+/** dragenter and dragleave fire for every element crossed; the count says when the page is left. */
+let dragDepth = 0
+
+function carriesFiles(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes('Files') === true
+}
+
+function onDragEnter(event: DragEvent): void {
+  if (!carriesFiles(event)) return
+  event.preventDefault()
+  dragDepth += 1
+  dragging.value = true
+}
+
+function onDragOver(event: DragEvent): void {
+  if (!carriesFiles(event)) return
+  // Without this the browser refuses the drop, or opens the file in the tab.
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = isSupported.value ? 'copy' : 'none'
+}
+
+function onDragLeave(event: DragEvent): void {
+  if (!carriesFiles(event)) return
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dragging.value = false
+}
+
+function onDrop(event: DragEvent): void {
+  if (!carriesFiles(event)) return
+  event.preventDefault()
+  event.stopPropagation()
+  dragDepth = 0
+  dragging.value = false
+  // Synchronously, inside the event: the browser empties the transfer afterwards.
+  if (isSupported.value && event.dataTransfer) void openDroppedFiles(event.dataTransfer)
+}
+
+onMounted(() => {
+  window.addEventListener('dragenter', onDragEnter, true)
+  window.addEventListener('dragover', onDragOver, true)
+  window.addEventListener('dragleave', onDragLeave, true)
+  window.addEventListener('drop', onDrop, true)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('dragenter', onDragEnter, true)
+  window.removeEventListener('dragover', onDragOver, true)
+  window.removeEventListener('dragleave', onDragLeave, true)
+  window.removeEventListener('drop', onDrop, true)
+})
+
 /** Scratch text, used only while no file is open. Never written to disk. */
 const scratch = ref(welcomeDocument)
 
@@ -175,7 +237,13 @@ function onChange(text: string) {
         Could not read {{ error.path || 'the folder' }}: {{ error.message }}
       </p>
 
+      <p v-else-if="error?.kind === 'not-markdown'" class="shell__notice">
+        Only Markdown files can be opened. Skipped {{ error.names.join(', ') }}.
+      </p>
+
       <FileExplorer />
+
+      <ExternalFiles />
 
       <p class="shell__privacy">Files never leave your device.</p>
 
@@ -230,9 +298,22 @@ function onChange(text: string) {
 
     <main class="shell__editor">
       <ConflictBar />
-      <MarkdownEditor :doc="documentText" @change="onChange" />
+      <ReadOnlyBar />
+      <MarkdownEditor :doc="documentText" :read-only="activeDocument?.readOnly" @change="onChange" />
       <SaveStatus />
     </main>
+
+    <div v-if="dragging" class="drop" aria-hidden="true">
+      <div class="drop__target">
+        <template v-if="isSupported">
+          <p class="drop__title">Drop a Markdown file to open it</p>
+          <p class="drop__hint">
+            {{ root ? `Files from outside ${root.name} are listed apart from it.` : 'It stays on your device.' }}
+          </p>
+        </template>
+        <p v-else class="drop__title">Opening files needs a Chromium-based browser</p>
+      </div>
+    </div>
 
     <WelcomeModal @update:highlight="highlightLinks = $event" />
   </div>

@@ -277,3 +277,79 @@ describe('deleteFile', () => {
     expect(Object.keys(tree).sort()).toEqual(['Projects', 'keep.md'])
   })
 })
+
+describe('filesFromDrop', () => {
+  /** A drop as Chromium hands it over: items that each resolve to a handle. */
+  function transfer(...handles: (FileSystemHandle | null)[]): DataTransfer {
+    const items = handles.map((handle) => ({
+      kind: 'file',
+      getAsFileSystemHandle: async () => handle,
+    }))
+    return { items } as unknown as DataTransfer
+  }
+
+  const directory = (name: string) => fakeDirectory(name, {}) as unknown as FileSystemHandle
+
+  it('keeps the Markdown files, marked as outside the workspace', async () => {
+    const { handle } = fakeFile('notes.md', '# Notes\n')
+    const { files, rejected } = await service.filesFromDrop(transfer(handle))
+
+    expect(rejected).toEqual([])
+    expect(files).toHaveLength(1)
+    expect(files[0]).toMatchObject({ kind: 'file', name: 'notes.md', path: 'notes.md' })
+    expect(files[0]!.externalId).toEqual(expect.any(Number))
+  })
+
+  it('tells two dropped files with the same name apart', async () => {
+    const { files } = await service.filesFromDrop(
+      transfer(fakeFile('a.md', '').handle, fakeFile('a.md', '').handle),
+    )
+    expect(files[0]!.externalId).not.toBe(files[1]!.externalId)
+  })
+
+  it('rejects other files and folders by name', async () => {
+    const { files, rejected } = await service.filesFromDrop(
+      transfer(fakeFile('photo.png', '').handle, directory('Projects'), fakeFile('b.md', '').handle),
+    )
+    expect(files.map((file) => file.name)).toEqual(['b.md'])
+    expect(rejected).toEqual(['photo.png', 'Projects'])
+  })
+
+  it('asks for every handle before awaiting anything', async () => {
+    let asked = 0
+    const items = [1, 2].map(() => ({
+      kind: 'file',
+      getAsFileSystemHandle: () => {
+        asked += 1
+        return Promise.resolve(fakeFile('x.md', '').handle)
+      },
+    }))
+    const pending = service.filesFromDrop({ items } as unknown as DataTransfer)
+    // The browser empties the transfer when the drop handler returns.
+    expect(asked).toBe(2)
+    await pending
+  })
+
+  it('ignores what is not a file, and a browser that gives no handle', async () => {
+    const items = [
+      { kind: 'string', getAsFileSystemHandle: async () => fakeFile('text.md', '').handle },
+      { kind: 'file' },
+    ]
+    expect(await service.filesFromDrop({ items } as unknown as DataTransfer)).toEqual({
+      files: [],
+      rejected: [],
+    })
+  })
+})
+
+describe('hasWritePermission', () => {
+  it('reports a granted permission without prompting', async () => {
+    const { handle } = fakeFile('a.md', '', { permission: 'granted' })
+    expect(await service.hasWritePermission(fileNode(handle))).toBe(true)
+  })
+
+  it('reports anything else as not writable', async () => {
+    const { handle } = fakeFile('a.md', '', { permission: 'prompt' })
+    expect(await service.hasWritePermission(fileNode(handle))).toBe(false)
+  })
+})
