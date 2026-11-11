@@ -316,5 +316,6 @@ function onChange(text: string) {
     </div>
 
     <WelcomeModal @update:highlight="highlightLinks = $event" />
+    <ProductTour />
   </div>
 </template>

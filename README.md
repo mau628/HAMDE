@@ -85,15 +85,18 @@ Node.js 24.11 or newer for development.
   for write access, and from then on it autosaves like any other file. A file
   dropped from inside the open folder simply opens in the tree. Dropped files are
   not remembered across reloads.
+- **A four-step tour on the first visit**, pointing at the folder button, the
+  editor, dropping files and the editor's tools. Skip it, or press Escape, and it
+  does not come back.
 - **Light and dark themes**, following the system until you choose one.
 - **Narrow or wide editor**, toggled with the button in the editor or Ctrl/Cmd+,.
 - **Printing**, with the button in the editor or Ctrl/Cmd+P: the whole document,
   rendered, in the light palette, and nothing of the app around it. The page margins
   follow the editor's width: 2.54 cm when it is wide, 3.18 cm when it is narrow.
 
-Only three small preferences stay in the browser, and none of them is note content:
+Only a few small preferences stay in the browser, and none of them is note content:
 the last folder's handle (IndexedDB), the theme and editor width, and whether the
-welcome dialog is hidden (localStorage). See [docs/security.md](docs/security.md).
+welcome dialog is hidden and the first-visit tour was seen (localStorage). See [docs/security.md](docs/security.md).
 
 ## What it deliberately does not do
 

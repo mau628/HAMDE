@@ -126,7 +126,7 @@ loaded.
 
 ## What stays in the browser
 
-Nothing from a note is ever stored. Four things are, all local to the browser
+Nothing from a note is ever stored. Five things are, all local to the browser
 profile and none sent anywhere:
 
 | What | Where | Why |
@@ -135,6 +135,7 @@ profile and none sent anywhere:
 | Theme, editor width | `localStorage` (`hamde-theme`, `hamde.editorWide`) | Per-viewer preferences. |
 | Whether the welcome dialog is hidden | `localStorage` (`hamde:hide-welcome`) | So it is not shown every visit. |
 | How many times HAMDE has been opened, capped at `welcomeMinVisits` | `localStorage` (`hamde:visits`) | The welcome dialog waits until that visit. |
+| Whether the first-visit tour was finished or skipped | `localStorage` (`hamde:tour-done`) | So it shows only once. |
 
 Every read and write is wrapped so that blocked or unavailable storage (private
 mode, quota) degrades to the defaults instead of an error.

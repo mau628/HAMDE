@@ -11,14 +11,17 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',
-    // The welcome dialog opens on a first visit and covers the page, so every
-    // test starts as a visitor who has already dismissed it for good.
+    // The welcome dialog and the first-visit tour cover the page, so every test
+    // starts as a visitor who has already dismissed both for good.
     storageState: {
       cookies: [],
       origins: [
         {
           origin: 'http://localhost:3000',
-          localStorage: [{ name: 'hamde:hide-welcome', value: '1' }],
+          localStorage: [
+            { name: 'hamde:hide-welcome', value: '1' },
+            { name: 'hamde:tour-done', value: '1' },
+          ],
         },
       ],
     },
