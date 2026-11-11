@@ -20,6 +20,18 @@ export interface FileNode {
   /** Slash-separated path relative to the workspace root, for display and keys. */
   path: string
   handle: FileSystemFileHandle
+  /**
+   * Set on a file that is not part of the workspace: one dropped onto the app.
+   *
+   * Its `path` is then just its name, so this is what tells two dropped files with
+   * the same name apart. Compare files with `isSameFile`, never by path alone.
+   */
+  externalId?: number
+}
+
+/** Whether two nodes are the same file: same path, and both inside or outside the workspace. */
+export function isSameFile(a: FileNode, b: FileNode): boolean {
+  return a.path === b.path && a.externalId === b.externalId
 }
 
 export interface DirectoryNode {
@@ -41,6 +53,19 @@ export interface OpenDocument {
   stamp: FileStamp
   /** What the file on disk uses, so writing it back does not rewrite every line. */
   lineEnding: LineEnding
+  /**
+   * Shown but not editable. Only a dropped file starts this way: the browser hands
+   * it over with read access, and writing needs the user to allow it.
+   */
+  readOnly: boolean
+}
+
+/** What a drop onto the app carried. */
+export interface DroppedFiles {
+  /** The Markdown files, in the order they were dropped. */
+  files: FileNode[]
+  /** Names of everything else: other files, folders. */
+  rejected: string[]
 }
 
 export type WriteResult =
@@ -91,6 +116,24 @@ export interface FileSystemService {
   renameFile(root: DirectoryNode, file: FileNode, name: string): Promise<FileNode | null>
   /** Removes `file` from disk. `root` is the workspace folder, as for `renameFile`. */
   deleteFile(root: DirectoryNode, file: FileNode): Promise<void>
+  /**
+   * The Markdown files in a drop, each with a handle the app can read and, once the
+   * user allows it, write.
+   *
+   * Call it from inside the `drop` event: the browser empties the data transfer as
+   * soon as the handler returns. Resolves to nothing at all where the browser cannot
+   * give a handle for a dropped file.
+   */
+  filesFromDrop(transfer: DataTransfer): Promise<DroppedFiles>
+  /**
+   * Where `file` sits inside `directory`, as path segments, or `null` if it is not
+   * inside it. Lets a file dropped from the open folder open as part of the folder.
+   */
+  locateInDirectory(directory: DirectoryNode, file: FileNode): Promise<string[] | null>
+  /** Whether two handles point at the same file on disk. */
+  isSameEntry(a: FileNode, b: FileNode): Promise<boolean>
+  /** Whether write permission is already granted. Never prompts, never throws. */
+  hasWritePermission(file: FileNode): Promise<boolean>
   /** Ensures write permission is still granted, prompting if the browser allows. */
   ensureWritePermission(node: FileTreeNode): Promise<boolean>
   /**

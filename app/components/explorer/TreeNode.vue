@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FileNode, FileTreeNode } from '~/types/fileSystem'
+import { isSameFile, type FileNode, type FileTreeNode } from '~/types/fileSystem'
 
 const props = defineProps<{
   node: FileTreeNode
@@ -9,9 +9,10 @@ const props = defineProps<{
 const { busy, isExpanded, toggleDirectory, openFile, renameFile, deleteFile } = useWorkspace()
 const { activeDocument } = useDocument()
 
-const isActive = computed(
-  () => props.node.kind === 'file' && activeDocument.value?.file.path === props.node.path,
-)
+const isActive = computed(() => {
+  const open = activeDocument.value
+  return props.node.kind === 'file' && open !== null && isSameFile(open.file, props.node)
+})
 
 // Both actions change the disk, so neither happens without the user confirming it.
 async function onRename(file: FileNode): Promise<void> {

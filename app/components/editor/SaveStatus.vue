@@ -2,6 +2,8 @@
 const { activeDocument, saveState, saveNow } = useDocument()
 
 const label = computed(() => {
+  // Nothing has been typed into a read-only document, so there is nothing to save.
+  if (activeDocument.value?.readOnly) return 'Read-only'
   switch (saveState.value.status) {
     case 'clean':
       return 'Saved'
@@ -22,7 +24,9 @@ const canRetry = computed(() => saveState.value.status === 'error')
 
 <template>
   <p v-if="activeDocument" class="status" :class="'status--' + saveState.status">
-    <span class="status__path">{{ activeDocument.file.path }}</span>
+    <span class="status__path">
+      {{ activeDocument.file.path }}<template v-if="activeDocument.file.externalId !== undefined"> (dropped file)</template>
+    </span>
     <span class="status__separator" aria-hidden="true">&middot;</span>
     <!-- aria-live so a save failure is announced, not just coloured. -->
     <span class="status__state" role="status" aria-live="polite">{{ label }}</span>

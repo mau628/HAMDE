@@ -231,6 +231,7 @@ function checkbox(task: { checked: boolean; offset: number }): HTMLElement {
  * table was drawn.
  */
 function toggleTask(view: EditorView, position: number): void {
+  if (view.state.readOnly) return
   const marker = view.state.doc.sliceString(position, position + 3)
   const match = /^\[([ xX])\]$/.exec(marker)
   if (match === null) return

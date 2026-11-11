@@ -78,6 +78,13 @@ Node.js 24.11 or newer for development.
   next visit. Chrome usually drops folder permission on reload, so the first click or
   key press in the page asks for it back, once. "Close folder" (the × next to Open
   Folder) forgets it.
+- **Drop a Markdown file to open it.** Drag a `.md` file from anywhere onto the
+  page. A file from outside the open folder is listed under its own heading, apart
+  from the tree, and works with no folder open at all. It opens read-only, because
+  the browser hands a dropped file over with read access only; "Allow editing" asks
+  for write access, and from then on it autosaves like any other file. A file
+  dropped from inside the open folder simply opens in the tree. Dropped files are
+  not remembered across reloads.
 - **Light and dark themes**, following the system until you choose one.
 - **Narrow or wide editor**, toggled with the button in the editor or Ctrl/Cmd+,.
 - **Printing**, with the button in the editor or Ctrl/Cmd+P: the whole document,
