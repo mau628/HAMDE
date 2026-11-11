@@ -87,7 +87,7 @@ Node.js 24.11 or newer for development.
   not remembered across reloads.
 - **A four-step tour on the first visit**, pointing at the folder button, the
   editor, dropping files and the editor's tools. Skip it, or press Escape, and it
-  does not come back.
+  does not come back on its own; the ? at the bottom of the sidebar replays it.
 - **Light and dark themes**, following the system until you choose one.
 - **Narrow or wide editor**, toggled with the button in the editor or Ctrl/Cmd+,.
 - **Printing**, with the button in the editor or Ctrl/Cmd+P: the whole document,

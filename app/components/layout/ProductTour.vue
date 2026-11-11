@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * A short tour on the first visit: four steps, each pointing at one part of the
- * page. Skipped or finished, it never shows again.
+ * page. Skipped or finished, it does not show again on its own; the help button in
+ * the sidebar replays it.
  *
  * Without storage there is no way to tell a first visit from a later one, so the
  * tour stays closed rather than greeting every visit.
@@ -90,6 +91,7 @@ async function place(): Promise<void> {
 
 function finish(): void {
   index.value = null
+  window.removeEventListener('resize', onResize)
   try {
     localStorage.setItem(STORAGE_KEY, '1')
   } catch {
@@ -108,6 +110,15 @@ function onResize(): void {
   void place()
 }
 
+/** Starts the tour from its first step. Also how the sidebar's help button replays it. */
+function start(): void {
+  window.removeEventListener('resize', onResize)
+  window.addEventListener('resize', onResize)
+  void go(0)
+}
+
+defineExpose({ start })
+
 onMounted(() => {
   let done = true
   try {
@@ -115,10 +126,7 @@ onMounted(() => {
   } catch {
     // ignore
   }
-  if (done) return
-
-  window.addEventListener('resize', onResize)
-  void go(0)
+  if (!done) start()
 })
 
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))

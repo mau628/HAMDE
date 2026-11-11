@@ -67,3 +67,14 @@ test('keeps the card on screen on a phone', async ({ page }) => {
     await page.getByRole('button', { name: step === 3 ? 'Done' : 'Next' }).click()
   }
 })
+
+test('replays from the help button in the sidebar', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Skip' }).click()
+  await expect(tour(page)).toBeHidden()
+
+  await page.getByRole('button', { name: 'Show the tour' }).click()
+
+  await expect(tour(page)).toContainText('Open a folder')
+  await expect(tour(page)).toContainText('1 / 4')
+})

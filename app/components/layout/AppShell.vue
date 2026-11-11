@@ -10,6 +10,8 @@ const config = useRuntimeConfig()
 const logoSrc = `${config.app.baseURL}logo.svg`
 const { repoUrl, coffeeUrl } = config.public
 
+const tour = ref<{ start: () => void } | null>(null)
+
 /** Set by the welcome modal while it points at the sidebar links. */
 const highlightLinks = ref(false)
 
@@ -279,6 +281,19 @@ function onChange(text: string) {
           </svg>
         </a>
         <button
+          class="shell__link shell__help"
+          type="button"
+          aria-label="Show the tour"
+          title="Show the tour"
+          @click="tour?.start()"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+            <path d="M12 17h.01" />
+          </svg>
+        </button>
+        <button
           class="shell__link shell__theme"
           type="button"
           :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
@@ -316,6 +331,6 @@ function onChange(text: string) {
     </div>
 
     <WelcomeModal @update:highlight="highlightLinks = $event" />
-    <ProductTour />
+    <ProductTour ref="tour" />
   </div>
 </template>
