@@ -214,6 +214,13 @@ body {
   bottom: 0;
 }
 
+/* Mirrors the theme toggle, so the project links stay centred between the two. */
+.shell__help {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+}
+
 .shell__link:hover,
 .shell__link:focus-visible {
   color: var(--color-accent);
@@ -280,6 +287,93 @@ body {
   color: var(--color-bg);
   font: inherit;
   cursor: pointer;
+}
+
+/* First-visit tour */
+
+/* Above the welcome dialog: on a build that shows both on the first visit, the tour goes first. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+}
+
+.tour__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.45);
+}
+
+/* A hole in the dimmed page: the shadow is the dimming, the box is what shows through. */
+.tour__spot {
+  position: fixed;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 2px var(--color-accent),
+    0 0 0 9999px rgb(0 0 0 / 0.45);
+  transition: all 200ms ease;
+}
+
+.tour__card {
+  position: fixed;
+  width: min(300px, calc(100vw - 32px));
+  padding: calc(var(--space) * 2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  line-height: 1.45;
+}
+
+.tour__title {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.tour__text {
+  margin: 0;
+  font-size: 13px;
+}
+
+.tour__footer {
+  display: flex;
+  gap: var(--space);
+  align-items: center;
+  margin-top: calc(var(--space) * 2);
+}
+
+.tour__count {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.tour__skip,
+.tour__next {
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.tour__skip {
+  color: var(--color-text-muted);
+  background: none;
+  border: 0;
+}
+
+.tour__next {
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour__spot {
+    transition: none;
+  }
 }
 
 /* Lifted above the modal backdrop so the icons stay visible while pulsing. */
@@ -756,7 +850,8 @@ body {
   .readonly,
   .drop,
   .status,
-  .welcome {
+  .welcome,
+  .tour {
     display: none;
   }
 
